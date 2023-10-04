@@ -10,4 +10,5 @@ Feel free to provide patches to improve the cover of the wrapper, fix mistakes, 
 I can gladly provide the ownership of the repository to someone more motivated than me to continue this task (I will only add what I need for my main project).
 
 
-`x86_64-pc-windows-gnu` is the required toolchain for windows
+`x86_64-pc-windows-gnu` is the required toolchain for windows:
+`cargo +nightly-x86_64-pc-windows-gnu test`. This may be a string limitation for the dependent crates.
