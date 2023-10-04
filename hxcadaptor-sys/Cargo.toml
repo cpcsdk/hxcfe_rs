@@ -5,7 +5,7 @@ edition = "2021"
 links = "hxcadaptor"
 repository = "https://github.com/cpcsdk/hxcfe_rs"
 authors = ["Romain Giot <giot.romain@gmail.com>"]
-license = "GPL3"
+license = "GPL-3.0-only"
 description = "Bindings for libhxcfe https://github.com/jfdelnero/HxCFloppyEmulator/. Unfinished work, contributions are welcomed."
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
