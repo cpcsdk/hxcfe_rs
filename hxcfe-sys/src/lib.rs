@@ -6,11 +6,13 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 #[cfg(test)]
 mod test {
-    use crate::{hxcfe_init, hxcfe_deinit};
+    use crate::{hxcfe_deinit, hxcfe_init};
 
-	#[test]
-	fn nothing() {unsafe{
-		let res = hxcfe_init();
-		hxcfe_deinit(res);
-	}}
+    #[test]
+    fn nothing() {
+        unsafe {
+            let res = hxcfe_init();
+            hxcfe_deinit(res);
+        }
+    }
 }

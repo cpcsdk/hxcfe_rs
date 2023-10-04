@@ -4,25 +4,21 @@
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
-
 #[cfg(test)]
 mod test {
     use std::ffi::CString;
 
     use crate::hxc_strupper;
 
-	#[test]
-	fn test_string() {
-		unsafe {
-			let lower = CString::new("lower").unwrap();
-			let upper = CString::new("LOWER").unwrap();
+    #[test]
+    fn test_string() {
+        unsafe {
+            let lower = CString::new("lower").unwrap();
+            let upper = CString::new("LOWER").unwrap();
 
-			let res = hxc_strupper(lower.into_raw());
-			let res = CString::from_raw(res);
-			assert_eq!(
-				upper,
-				res
-			);
-		}
-	}
+            let res = hxc_strupper(lower.into_raw());
+            let res = CString::from_raw(res);
+            assert_eq!(upper, res);
+        }
+    }
 }

@@ -7,18 +7,23 @@ mod sector_access;
 
 pub use fs_manager::FileSystemManager;
 use once_cell::sync::Lazy;
-use std::sync::Mutex;
+
 use std::{
-    ffi::{CStr, CString},
-    marker::PhantomData,
+    ffi::{CStr},
     ops::Deref,
     path::Path,
-    rc::Rc,
     sync::Arc,
 };
 
 use floppy_interface::FloppyInterface;
-use hxcfe_sys::{hxcfe_getVersion, hxcfe_imgInitLoader, HXCFE, HXCFE_IMGLDR, ISOIBM_MFM_ENCODING, AMIGA_MFM_ENCODING, ISOIBM_FM_ENCODING, EMU_FM_ENCODING, TYCOM_FM_ENCODING, APPLEII_HDDD_A2_GCR2_ENCODING, APPLEII_GCR2_ENCODING, APPLEII_GCR1_ENCODING, ARBURGDAT_ENCODING, NORTHSTAR_HS_MFM_ENCODING, VICTOR9K_GCR_ENCODING, QD_MO5_ENCODING, APPLEMAC_GCR_ENCODING, DEC_RX02_M2FM_ENCODING, HEATHKIT_HS_FM_ENCODING, AED6200P_MFM_ENCODING, ARBURGSYS_ENCODING, MICRALN_HS_FM_ENCODING, UNKNOWN_ENCODING, APPLEII_HDDD_A2_GCR1_ENCODING, MEMBRAIN_MFM_ENCODING, C64_GCR_ENCODING};
+use hxcfe_sys::{
+    hxcfe_getVersion, AED6200P_MFM_ENCODING, AMIGA_MFM_ENCODING,
+    APPLEII_GCR1_ENCODING, APPLEII_GCR2_ENCODING, APPLEII_HDDD_A2_GCR1_ENCODING,
+    APPLEII_HDDD_A2_GCR2_ENCODING, APPLEMAC_GCR_ENCODING, ARBURGDAT_ENCODING, ARBURGSYS_ENCODING,
+    C64_GCR_ENCODING, DEC_RX02_M2FM_ENCODING, EMU_FM_ENCODING, HEATHKIT_HS_FM_ENCODING, HXCFE, ISOIBM_FM_ENCODING, ISOIBM_MFM_ENCODING, MEMBRAIN_MFM_ENCODING,
+    MICRALN_HS_FM_ENCODING, NORTHSTAR_HS_MFM_ENCODING, QD_MO5_ENCODING, TYCOM_FM_ENCODING,
+    UNKNOWN_ENCODING, VICTOR9K_GCR_ENCODING,
+};
 pub use img::Img;
 pub use img_loaders::ImgLoaderManager;
 pub use layouts::LayoutManager;
@@ -37,8 +42,7 @@ pub enum HxcfeError {
 }
 
 #[repr(u32)]
-#[derive(Copy, Clone)]
-#[derive(enumn::N)]
+#[derive(Copy, Clone, enumn::N)]
 pub enum TrackEncoding {
     IsoIbmMfm = ISOIBM_MFM_ENCODING,
     Amiga_Mfm = AMIGA_MFM_ENCODING,
@@ -69,18 +73,17 @@ static HXCFE_INSTANCE: Lazy<Arc<Hxcfe>> = Lazy::new(|| {
     let hxcfe: Arc<Hxcfe> = Hxcfe { handler }.into();
 
     /*
-    eprintln!("Check loaders- need to remove that of course");
-    let manager = hxcfe.loaders_manager().unwrap();
-    for i in 0..manager.nb_loaders() {
-        println!("Loader {i}");
-        let loader = manager.loader_for_id(i).unwrap();
-        println!("\t{}", loader.access());
-        println!("\t{}", loader.name());
-        println!("\t{:?}", loader.description());
-    }
-*/
+        eprintln!("Check loaders- need to remove that of course");
+        let manager = hxcfe.loaders_manager().unwrap();
+        for i in 0..manager.nb_loaders() {
+            println!("Loader {i}");
+            let loader = manager.loader_for_id(i).unwrap();
+            println!("\t{}", loader.access());
+            println!("\t{}", loader.name());
+            println!("\t{:?}", loader.description());
+        }
+    */
     hxcfe
-
 });
 
 unsafe impl Send for Hxcfe {}
@@ -101,8 +104,8 @@ impl Deref for Hxcfe {
 }
 impl Drop for Hxcfe {
     fn drop(&mut self) {
-    eprintln!("Deallocate HXCFE");
-    unsafe { hxcfe_sys::hxcfe_deinit(self.handler) };
+        eprintln!("Deallocate HXCFE");
+        unsafe { hxcfe_sys::hxcfe_deinit(self.handler) };
     }
 }
 impl Hxcfe {
@@ -132,35 +135,39 @@ impl Hxcfe {
         FloppyInterface::new(self, idx)
     }
 
-    pub fn load<P: AsRef<Path>>(& self, p: P) -> Result<Img, String> {
+    pub fn load<P: AsRef<Path>>(&self, p: P) -> Result<Img, String> {
         let manager = self
             .loaders_manager()
             .ok_or_else(|| "Unable to get the loader manager".to_owned())?;
 
-        let loader = manager
-            .loader_for_fname(&p)
-            .ok_or_else(|| format!("Unable to find a loading loader for {}", p.as_ref().display()))?;
+        let loader = manager.loader_for_fname(&p).ok_or_else(|| {
+            format!(
+                "Unable to find a loading loader for {}",
+                p.as_ref().display()
+            )
+        })?;
 
         loader
             .load(&p)
             .or_else(|e| Err(format!("Load error {:?}", e)))
     }
 
-
     // TODO Find a way to remove the format information
     pub(crate) fn save<P: AsRef<Path>>(&self, p: P, format: &str, img: &Img) -> Result<(), String> {
-
         let manager = self
             .loaders_manager()
             .ok_or_else(|| "Unable to get the loader manager".to_owned())?;
 
-        let loader = manager
-            .loader_for_format(format)
-            .ok_or_else(|| format!("Unable to find a saving loader for {}", p.as_ref().display()))?;
+        let loader = manager.loader_for_format(format).ok_or_else(|| {
+            format!(
+                "Unable to find a saving loader for {}",
+                p.as_ref().display()
+            )
+        })?;
 
-        loader.save(&p, img)
-        .or_else(|e| Err(format!("Save error {:?}", e)))
-
+        loader
+            .save(&p, img)
+            .or_else(|e| Err(format!("Save error {:?}", e)))
     }
 }
 
@@ -172,10 +179,7 @@ mod test {
 
     use crate::Hxcfe;
 
-    static TESTS: Lazy<Mutex<()>> = Lazy::new(|| {
-        Mutex::new(())
-    });
-    
+    static TESTS: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
     #[test]
     fn version() {
@@ -222,7 +226,6 @@ mod test {
         }
     }
 
-
     #[test]
     fn dsk_loader() {
         let _locker = TESTS.lock();
@@ -230,7 +233,6 @@ mod test {
 
         {
             let manager = hxcfe.loaders_manager().unwrap();
-
 
             assert!(manager.loader_for_text_id("AMSTRADCPC_DSK").is_some());
             assert!(manager.loader_for_text_id("AMSTRADCPC_DSK").is_some());

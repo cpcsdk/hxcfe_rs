@@ -1,7 +1,5 @@
-use hxcfe::{FileSystemManager, Hxcfe};
+use hxcfe::{Hxcfe};
 const DSK_FNAME: &'static str = "tests/ECOLE_BUISSONNIERE_(OVERLANDERS).DSK";
-
-
 
 #[test]
 fn load_dsk() {
@@ -25,5 +23,5 @@ fn load_dsk() {
 #[should_panic]
 fn load_missing_dsk() {
     let hxcfe = Hxcfe::get();
-    let res = dbg!(hxcfe.load("missing.dsk"));
+    let _res = dbg!(hxcfe.load("missing.dsk"));
 }

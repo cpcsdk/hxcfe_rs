@@ -7,18 +7,18 @@ use hxcfe_sys::{
 
 use crate::{Img, TrackEncoding};
 
-pub struct SectorAccess< 'img> {
+pub struct SectorAccess<'img> {
     img: &'img Img,
     access: *mut HXCFE_SECTORACCESS,
 }
 
-pub struct SectorConfig< 'access, 'img> {
+pub struct SectorConfig<'access, 'img> {
     access: &'access SectorAccess<'img>,
     cfg: *mut HXCFE_SECTCFG,
-	track: i32
+    track: i32,
 }
 
-impl Drop for SectorConfig<'_,  '_> {
+impl Drop for SectorConfig<'_, '_> {
     fn drop(&mut self) {
         unsafe { hxcfe_freeSectorConfig(self.access.access, self.cfg) }
     }
@@ -27,11 +27,11 @@ impl Drop for SectorConfig<'_,  '_> {
 pub struct SectorConfigArray<'access, 'img> {
     nb_sectors: i32,
     sca: *mut *mut HXCFE_SECTCFG,
-    access: &'access SectorAccess< 'img>,
-	track: i32
+    access: &'access SectorAccess<'img>,
+    track: i32,
 }
 
-impl SectorConfigArray<'_,'_> {
+impl SectorConfigArray<'_, '_> {
     pub fn nb_sectors(&self) -> i32 {
         self.nb_sectors
     }
@@ -41,14 +41,15 @@ impl SectorConfigArray<'_,'_> {
         SectorConfig {
             access: self.access,
             cfg: unsafe { *self.sca.wrapping_add(pos as usize) },
-			track: self.track
+            track: self.track,
         }
     }
 }
 
-impl< 'img> SectorAccess< 'img> {
+impl<'img> SectorAccess<'img> {
     pub fn new(img: &'img Img) -> Option<Self> {
-        let access = unsafe { hxcfe_initSectorAccess(img.hxcfe.as_ref().unwrap().handler, img.floppydisk) };
+        let access =
+            unsafe { hxcfe_initSectorAccess(img.hxcfe.as_ref().unwrap().handler, img.floppydisk) };
         if access.is_null() {
             None
         } else {
@@ -74,8 +75,8 @@ impl< 'img> SectorAccess< 'img> {
                 access: self,
                 cfg: sector,
                 track,
-        //        side: head,
-        //        sector: None,
+                //        side: head,
+                //        sector: None,
             })
         }
     }
@@ -95,8 +96,8 @@ impl< 'img> SectorAccess< 'img> {
                 access: self,
                 cfg: sector,
                 track,
-    //            side: head,
-    //            sector: Some(id),
+                //            side: head,
+                //            sector: Some(id),
             })
         }
     }
@@ -116,10 +117,10 @@ impl< 'img> SectorAccess< 'img> {
             None
         } else {
             Some(SectorConfigArray {
-				access: self,
+                access: self,
                 nb_sectors: nb_sectors_found,
                 sca,
-				track
+                track,
             })
         }
     }
@@ -129,29 +130,28 @@ impl< 'img> SectorAccess< 'img> {
     }
 }
 
-impl SectorConfig<'_,  '_> {
+impl SectorConfig<'_, '_> {
+    pub fn head(&self) -> i32 {
+        unsafe { self.cfg.as_ref().unwrap().head }
+    }
 
-	pub fn head(&self) -> i32 {
-		unsafe { self.cfg.as_ref().unwrap().head }
-	}
+    pub fn sector_id(&self) -> i32 {
+        unsafe { self.cfg.as_ref().unwrap().sector }
+    }
 
-	pub fn sector_id(&self) -> i32 {
-		unsafe { self.cfg.as_ref().unwrap().sector }
-	}
+    pub fn sector_size(&self) -> i32 {
+        unsafe { self.cfg.as_ref().unwrap().sectorsize }
+    }
 
-	pub fn sector_size(&self) -> i32 {
-		unsafe { self.cfg.as_ref().unwrap().sectorsize }
-	}
+    pub fn sectors_left(&self) -> i32 {
+        unsafe { self.cfg.as_ref().unwrap().sectorsleft }
+    }
 
-	pub fn sectors_left(&self) -> i32 {
-		unsafe { self.cfg.as_ref().unwrap().sectorsleft }
-	}
-
-	pub fn track_encoding(&self) -> TrackEncoding {
-		let encoding = unsafe { self.cfg.as_ref().unwrap().trackencoding };
-		assert!(encoding >= 0);
-		TrackEncoding::n(encoding as _).unwrap()
-	} 
+    pub fn track_encoding(&self) -> TrackEncoding {
+        let encoding = unsafe { self.cfg.as_ref().unwrap().trackencoding };
+        assert!(encoding >= 0);
+        TrackEncoding::n(encoding as _).unwrap()
+    }
 
     pub fn len(&self) -> i32 {
         unsafe { hxcfe_getSectorSize(self.access.access, self.cfg) }
@@ -169,12 +169,11 @@ impl SectorConfig<'_,  '_> {
         let mut fdcstatus = 0;
         let mut data = data.to_owned();
 
+        let track = self.track;
+        let side = (unsafe { *self.cfg }).head;
+        let sector = (unsafe { *self.cfg }).sector;
 
-		let track = self.track;
-		let side =  (unsafe { *self.cfg }).head;
-		let sector =  (unsafe { *self.cfg }).sector;
-
-        let res = unsafe {
+        let _res = unsafe {
             hxcfe_writeSectorData(
                 self.access.access,
                 track,
