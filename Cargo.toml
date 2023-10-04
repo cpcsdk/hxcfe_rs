@@ -1,0 +1,22 @@
+[workspace]
+
+members = [
+	"hxcadaptor-sys",
+	"hxcadaptor",
+	"hxcfe-sys",
+	"hxcfe"
+]
+
+[workspace.dependencies]
+
+hxcadaptor-sys = { version="0.1.0" }
+hxcadaptor = { version="0.1.0" }
+hxcfe-sys = { version="0.1.0" }
+hxcfe = { version="0.1.0" }
+
+[patch.crates-io]
+
+hxcadaptor-sys = { path = "hxcadaptor-sys" }
+hxcadaptor = { path = "hxcadaptor" }
+hxcfe-sys = { path = "hxcfe-sys" }
+hxcfe = { path = "hxcfe" }

@@ -1,0 +1,3 @@
+[submodule "vendor/HxCFloppyEmulator"]
+	path = vendor/HxCFloppyEmulator
+	url = https://github.com/jfdelnero/HxCFloppyEmulator.git
