@@ -34,12 +34,16 @@ fn main() {
     // Really build the library
     let o = gnu_make()
         .arg("libhxcfe.a")
-        .current_dir(build_dir)
+        .current_dir(&build_dir)
         .output()
         .expect("failed to build libhxcfe");
-    eprintln!("{}", std::str::from_utf8(&o.stdout).unwrap());
-    eprintln!("{}", std::str::from_utf8(&o.stderr).unwrap());
+    eprintln!("{}", String::from_utf8_lossy(&o.stdout));
+    eprintln!("{}", String::from_utf8_lossy(&o.stderr));
     assert!(o.status.success());
+
+    if cfg!(target_os = "windows") {
+        std::fs::copy(build_dir.join("libhxcfe.a"), build_dir.join("hxcfe.lib")).unwrap();
+    }
 
     // Generate bindings
     let bindings = bindgen::Builder::default()
