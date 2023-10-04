@@ -6,8 +6,18 @@ fn main() {
     // checkup
 
     // setup paths of interest
-    let base: PathBuf = "vendor/HxCFloppyEmulator/libhxcfe".into();
-    assert!(base.exists());
+    let original_base: PathBuf = "vendor/HxCFloppyEmulator/".into();
+    assert!(original_base.exists());
+    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+
+
+    // clone source code in output as it is the sole place where we can build
+    let base = out_path.join("hxccode");
+    if base.exists() {
+        std::fs::remove_dir_all(&base).unwrap();
+    }
+    copy_dir::copy_dir(&original_base, &base).unwrap();
+    let base = base.join("libhxcfe");
 
     let include_dir = dunce::canonicalize(base.join("sources")).unwrap();
     let build_dir = dunce::canonicalize(base.join("build")).unwrap();

@@ -4,11 +4,23 @@ use std::path::PathBuf;
 
 fn main() {
     // setup paths of interest
-    let base: PathBuf = "vendor/HxCFloppyEmulator/libhxcadaptor/".into();
-    assert!(base.exists());
+    let original_base: PathBuf = "vendor/HxCFloppyEmulator/libhxcadaptor/".into();
+    assert!(original_base.exists());
+    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+
+
+    // clone source code in output as it is the sole place where we can build
+    let base = out_path.join("hxccode");
+    if base.exists() {
+        std::fs::remove_dir_all(&base).unwrap();
+    }
+    copy_dir::copy_dir(&original_base, &base).unwrap();
+
+
+
+
     let include_dir = dunce::canonicalize(base.join("sources")).unwrap();
     let build_dir = dunce::canonicalize(base.join("build")).unwrap();
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
 
     //  generate cargo information
     println!("cargo:rerun-if-changed=build.rs");
