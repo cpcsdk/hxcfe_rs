@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 fn main() {
     // setup paths of interest
-    let base: PathBuf = "../vendor/HxCFloppyEmulator/libhxcadaptor/".into();
+    let base: PathBuf = "vendor/HxCFloppyEmulator/libhxcadaptor/".into();
     assert!(base.exists());
     let include_dir = dunce::canonicalize(base.join("sources")).unwrap();
     let build_dir = dunce::canonicalize(base.join("build")).unwrap();

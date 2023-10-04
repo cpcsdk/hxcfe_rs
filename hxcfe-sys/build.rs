@@ -6,7 +6,7 @@ fn main() {
     // checkup
 
     // setup paths of interest
-    let base: PathBuf = "../vendor/HxCFloppyEmulator/libhxcfe".into();
+    let base: PathBuf = "vendor/HxCFloppyEmulator/libhxcfe".into();
     assert!(base.exists());
 
     let include_dir = dunce::canonicalize(base.join("sources")).unwrap();

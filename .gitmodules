@@ -1,3 +1,6 @@
-[submodule "vendor/HxCFloppyEmulator"]
-	path = vendor/HxCFloppyEmulator
+[submodule "hxcadaptor-sys/vendor/HxCFloppyEmulator"]
+	path = hxcadaptor-sys/vendor/HxCFloppyEmulator
+	url = https://github.com/jfdelnero/HxCFloppyEmulator.git
+[submodule "hxcfe-sys/vendor/HxCFloppyEmulator"]
+	path = hxcfe-sys/vendor/HxCFloppyEmulator
 	url = https://github.com/jfdelnero/HxCFloppyEmulator.git
