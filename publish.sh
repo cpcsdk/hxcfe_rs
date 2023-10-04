@@ -1,4 +1,4 @@
-cargo publish -p hxcadaptor-sys && \
-	cargo publish -p hxcadaptor && \
-	cargo publish -p hxcfe-sys && \
-	cargo publish -p hxcfe
+cargo publish -p hxcadaptor-sys --allow-dirty && \
+	cargo publish -p hxcadaptor --allow-dirty  && \
+	cargo publish -p hxcfe-sys --allow-dirty  && \
+	cargo publish -p hxcfe --allow-dirty 
