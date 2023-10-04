@@ -1,11 +1,12 @@
 [package]
 name = "hxcfe"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 repository = "https://github.com/cpcsdk/hxcfe_rs"
 authors = ["Romain Giot <giot.romain@gmail.com>"]
 license = "GPL-3.0-only"
 description = "Bindings for libhxcfe https://github.com/jfdelnero/HxCFloppyEmulator/. Unfinished work, contributions are welcomed."
+readme = "../Readme.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

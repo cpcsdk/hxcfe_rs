@@ -157,14 +157,14 @@ dependencies = [
 
 [[package]]
 name = "hxcadaptor"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "hxcadaptor-sys",
 ]
 
 [[package]]
 name = "hxcadaptor-sys"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bindgen",
  "copy_dir",
@@ -174,7 +174,7 @@ dependencies = [
 
 [[package]]
 name = "hxcfe"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "enumn",
  "hxcfe-sys",
@@ -184,7 +184,7 @@ dependencies = [
 
 [[package]]
 name = "hxcfe-sys"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bindgen",
  "copy_dir",
