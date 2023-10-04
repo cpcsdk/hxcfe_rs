@@ -11,6 +11,6 @@ description = "Bindings for libhxcfe https://github.com/jfdelnero/HxCFloppyEmula
 
 [dependencies]
 hxcfe-sys.workspace = true
-enumn = "*"
+enumn = "0.1.12"
 once_cell = "1.18.0"
-parking_lot = "*"
+parking_lot = "0.12.1"
