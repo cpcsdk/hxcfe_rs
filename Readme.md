@@ -8,3 +8,6 @@ I may have memory leaks, even if I tried to avoid them.
 
 Feel free to provide patches to improve the cover of the wrapper, fix mistakes, or anything else.
 I can gladly provide the ownership of the repository to someone more motivated than me to continue this task (I will only add what I need for my main project).
+
+
+`x86_64-pc-windows-gnu` is the required toolchain for windows
