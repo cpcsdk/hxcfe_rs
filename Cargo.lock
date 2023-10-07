@@ -189,7 +189,7 @@ dependencies = [
  "bindgen",
  "copy_dir",
  "dunce",
- "hxcadaptor-sys",
+ "hxcadaptor",
  "make-cmd",
 ]
 
