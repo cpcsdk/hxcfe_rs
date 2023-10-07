@@ -1,1 +1,1 @@
-pub use hxcadaptator-sys;
+pub use hxcadaptator_sys;
