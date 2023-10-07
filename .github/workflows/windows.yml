@@ -20,5 +20,5 @@ jobs:
       with:
           target:  x86_64-pc-windows-gnu
           command: test
-          toolchain: nightly
+          toolchain: nightly-x86_64-pc-windows-gnu
           args: --release 
