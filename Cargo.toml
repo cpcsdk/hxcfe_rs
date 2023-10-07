@@ -9,10 +9,10 @@ members = [
 
 [workspace.dependencies]
 
-hxcadaptor-sys = { version="0.1.2" }
-hxcadaptor = { version="0.1.2" }
-hxcfe-sys = { version="0.1.2" }
-hxcfe = { version="0.1.2" }
+hxcadaptor-sys = { version="0.1.3" }
+hxcadaptor = { version="0.1.3" }
+hxcfe-sys = { version="0.1.3" }
+hxcfe = { version="0.1.3" }
 
 [patch.crates-io]
 
