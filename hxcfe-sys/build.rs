@@ -31,7 +31,7 @@ fn main() {
     println!("cargo:rustc-link-lib=static=hxcfe");
     println!("cargo:rustc-link-lib=static=hxcadaptor");
 
-    // Really build the library
+    eprintln!("Really build the library");
     let o = gnu_make()
         .arg("libhxcfe.a")
         .current_dir(&build_dir)
@@ -42,6 +42,7 @@ fn main() {
     assert!(o.status.success());
 
     if cfg!(target_os = "windows") {
+        eprintln!("Create windows file");
         std::fs::copy(build_dir.join("libhxcfe.a"), build_dir.join("hxcfe.lib")).unwrap();
     }
 
@@ -49,6 +50,7 @@ fn main() {
     let bindings = bindgen::Builder::default()
         .clang_arg(format!("-I{}", include_dir.display()))
         .header("wrapper.h")
+        .clang_arg(format!("--target={}", env::var("TARGET").unwrap()))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .generate()
         .expect("Unable to generate bindings");

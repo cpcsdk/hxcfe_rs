@@ -29,8 +29,9 @@ fn main() {
     println!("cargo:include={}", include_dir.display());
     println!("cargo:rustc-link-search=native={}", build_dir.display());
     println!("cargo:rustc-link-lib=hxcadaptor");
+  //  println!("cargo:rustc-link-lib=c");
 
-    // Really build the library
+    eprintln!("Really build the library");
     let o = gnu_make()
         .current_dir(&build_dir)
         .output()
@@ -40,12 +41,14 @@ fn main() {
     assert!(o.status.success());
 
     if cfg!(target_os = "windows") {
+        eprintln!("Build the windows library");
         std::fs::copy(build_dir.join("libhxcadaptor.a"), build_dir.join("hxcadaptor.lib")).unwrap();
     }
 
-    // Generate bindings
+    eprintln!("Generate bindings");
     let bindings = bindgen::Builder::default()
         .clang_arg(format!("-I{}", include_dir.display()))
+        .clang_arg(format!("--target={}", env::var("TARGET").unwrap()))
         .header("wrapper.h")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .generate()
