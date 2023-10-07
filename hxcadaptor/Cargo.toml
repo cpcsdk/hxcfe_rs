@@ -1,6 +1,6 @@
 [package]
 name = "hxcadaptor"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 authors = ["Romain Giot <giot.romain@gmail.com>"]
 repository = "https://github.com/cpcsdk/hxcfe_rs"

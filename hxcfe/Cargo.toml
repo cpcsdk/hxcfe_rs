@@ -1,6 +1,6 @@
 [package]
 name = "hxcfe"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 repository = "https://github.com/cpcsdk/hxcfe_rs"
 authors = ["Romain Giot <giot.romain@gmail.com>"]
