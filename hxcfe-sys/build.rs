@@ -51,6 +51,7 @@ fn main() {
         .clang_arg(format!("-I{}", include_dir.display()))
         .header("wrapper.h")
         .clang_arg(format!("--target={}", env::var("TARGET").unwrap()))
+        .generate_cstr(true)
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .generate()
         .expect("Unable to generate bindings");

@@ -48,8 +48,12 @@ fn main() {
     eprintln!("Generate bindings");
     let bindings = bindgen::Builder::default()
         .clang_arg(format!("-I{}", include_dir.display()))
+        .clang_arg("-FC:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.36.32532\\include")
         .clang_arg(format!("--target={}", env::var("TARGET").unwrap()))
+        .clang_arg("-v")
         .header("wrapper.h")
+        .generate_cstr(true)
+      //  .emit_diagnostics()
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .generate()
         .expect("Unable to generate bindings");

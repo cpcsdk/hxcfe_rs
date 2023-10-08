@@ -1,4 +1,7 @@
-#include <stdio.h>
+//#include <stdio.h>
+#include <stddef.h>
+struct _IO_FILE;
+typedef struct _IO_FILE FILE;
 
 // cpy pasted stuff needed for bindgen
 #ifndef _W64

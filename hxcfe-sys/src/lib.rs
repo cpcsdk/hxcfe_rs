@@ -4,9 +4,6 @@
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
-pub use hxcadaptor;
-pub use hxcadaptor::hxcadaptor_sys;
-
 #[cfg(test)]
 mod test {
     use crate::{hxcfe_deinit, hxcfe_init};

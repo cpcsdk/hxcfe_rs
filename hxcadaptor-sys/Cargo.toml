@@ -1,6 +1,6 @@
 [package]
 name = "hxcadaptor-sys"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 links = "hxcadaptor"
 repository = "https://github.com/cpcsdk/hxcfe_rs"
@@ -14,10 +14,10 @@ readme = "../Readme.md"
 
 
 [build-dependencies]
-make-cmd = "0.1.0"
-dunce = "1.0.4"
-bindgen = "0.65.1"
-copy_dir = "0.1.3"
+make-cmd.workspace = true
+dunce.workspace = true
+bindgen.workspace = true
+copy_dir.workspace = true
 
 [lib]
 name = "hxcadaptor_sys"

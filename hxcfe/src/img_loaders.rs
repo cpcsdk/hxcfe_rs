@@ -95,7 +95,7 @@ impl<'mngr> ImgLoader<'mngr> {
         } else {
             Ok(Img {
                 floppydisk,
-                hxcfe: (unsafe { &*self.manager }).hxcfe,
+                hxcfe: ( &*self.manager ).hxcfe,
             })
         }
     }
