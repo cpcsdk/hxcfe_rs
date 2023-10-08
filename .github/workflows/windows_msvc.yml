@@ -1,0 +1,24 @@
+name: Windows build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ "main" ]
+    
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-windows:
+
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v3
+    - run: git submodule update --init --recursive
+    - uses: houseabsolute/actions-rust-cross@v0
+      with:
+          target:  x86_64-pc-windows-msvc
+          command: test
+          toolchain: nightly-x86_64-pc-windows-msvc
+          args: --release 
