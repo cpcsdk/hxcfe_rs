@@ -1,5 +1,6 @@
 //#include <stdio.h>
 #include <stddef.h>
+#include <stdint.h>
 struct _IO_FILE;
 typedef struct _IO_FILE FILE;
 
@@ -77,15 +78,6 @@ typedef void HXCFE_FDCCTRL;
 typedef void HXCFE_SECTCFG;
 #define _HXCFE_SECTCFG_
 #endif
-
-
-#ifdef _WIN64 // [
-   typedef signed __int64    intptr_t;
-   typedef unsigned __int64  uintptr_t;
-#else // _WIN64 ][
-   typedef _W64 signed int   intptr_t;
-   typedef _W64 unsigned int uintptr_t;
-#endif // _WIN64 ]
 
 // file of interest
 #include "libhxcadaptor.h"

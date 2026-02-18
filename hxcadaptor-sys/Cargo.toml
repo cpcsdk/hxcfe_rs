@@ -18,6 +18,7 @@ make-cmd.workspace = true
 dunce.workspace = true
 bindgen.workspace = true
 copy_dir.workspace = true
+cc = "1"
 
 [lib]
 name = "hxcadaptor_sys"
