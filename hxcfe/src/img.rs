@@ -95,13 +95,19 @@ impl<'img> Interface<'img> {
         let res = unsafe {
             hxcfe_getFloppyInterfaceModeName(self.img.hxcfe.as_ref().unwrap().handler, self.ifmode)
         };
-        unsafe { CStr::from_ptr(res) }.to_str().unwrap()
+        if res.is_null() {
+            return "";
+        }
+        unsafe { CStr::from_ptr(res) }.to_str().unwrap_or("")
     }
 
-    pub fn desc(&self) -> &str {
+    pub fn description(&self) -> &str {
         let res = unsafe {
             hxcfe_getFloppyInterfaceModeDesc(self.img.hxcfe.as_ref().unwrap().handler, self.ifmode)
         };
-        unsafe { CStr::from_ptr(res) }.to_str().unwrap()
+        if res.is_null() {
+            return "";
+        }
+        unsafe { CStr::from_ptr(res) }.to_str().unwrap_or("")
     }
 }

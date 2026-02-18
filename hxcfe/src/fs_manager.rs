@@ -56,7 +56,7 @@ impl<'hfe> FileSystemManager<'hfe> {
     }
 
     pub fn open_dir(&self, folder: &str) -> Result<DirHandler, i32> {
-        let folder = CString::new(folder).unwrap();
+        let folder = CString::new(folder).map_err(|_| -4)?; // -4 = HXCFE_BADPARAMETER
         let folder = folder.into_raw();
         let dirhandle = unsafe { hxcfe_openDir(self.handler, folder) };
         let _ = unsafe { CString::from_raw(folder) };

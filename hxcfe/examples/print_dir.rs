@@ -45,7 +45,7 @@ fn main() {
         .expect(&format!("Unable to read {}", DSK_FNAME));
 
     let interface = img.interface_mode();
-    println!("Interface mode {} {}", interface.name(), interface.desc());
+    println!("Interface mode {} {}", interface.name(), interface.description());
     println!("Size: {}", img.size());
     println!("Nb sectors: {}", img.nb_sectors());
     println!("Nb sides: {}", img.nb_sides());

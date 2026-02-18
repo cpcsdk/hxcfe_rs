@@ -25,11 +25,17 @@ impl<'hfe> FloppyInterface<'hfe> {
 
     pub fn name(&self) -> &str {
         let name = unsafe { hxcfe_getFloppyInterfaceModeName(self.hfe.handler, self.idx) };
-        unsafe { CStr::from_ptr(name) }.to_str().unwrap()
+        if name.is_null() {
+            return "";
+        }
+        unsafe { CStr::from_ptr(name) }.to_str().unwrap_or("")
     }
 
     pub fn description(&self) -> &str {
         let name = unsafe { hxcfe_getFloppyInterfaceModeDesc(self.hfe.handler, self.idx) };
-        unsafe { CStr::from_ptr(name) }.to_str().unwrap()
+        if name.is_null() {
+            return "";
+        }
+        unsafe { CStr::from_ptr(name) }.to_str().unwrap_or("")
     }
 }

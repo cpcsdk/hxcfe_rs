@@ -30,14 +30,23 @@ pub use layouts::LayoutManager;
 
 #[repr(i32)]
 #[derive(enumn::N, PartialEq, Debug)]
+/// Error codes returned by HxC Floppy Emulator operations.
 pub enum HxcfeError {
+    /// File is valid and can be loaded
     HXCFE_VALIDFILE = 1,
+    /// Operation completed successfully
     HXCFE_NOERROR = 0,
+    /// File or resource access error
     HXCFE_ACCESSERROR = -1,
+    /// Invalid or corrupted file format
     HXCFE_BADFILE = -2,
+    /// File data is corrupted
     HXCFE_FILECORRUPTED = -3,
+    /// Invalid parameter provided
     HXCFE_BADPARAMETER = -4,
+    /// Internal library error
     HXCFE_INTERNALERROR = -5,
+    /// File format is not supported
     HXCFE_UNSUPPORTEDFILE = -6,
 }
 
@@ -90,6 +99,10 @@ unsafe impl Send for Hxcfe {}
 unsafe impl Sync for Hxcfe {}
 
 #[derive(Debug)]
+/// Main HxC Floppy Emulator context.
+/// 
+/// This is a singleton instance that provides access to the HxC library functionality.
+/// Use [`Hxcfe::get()`] to obtain a reference to the global instance.
 // By construction there is only one instance available. So it is uneeded to keep its reference
 pub struct Hxcfe {
     handler: *mut HXCFE,
@@ -109,24 +122,46 @@ impl Drop for Hxcfe {
     }
 }
 impl Hxcfe {
+    /// Get a reference to the global HxC Floppy Emulator instance.
+    /// 
+    /// # Example
+    /// ```no_run
+    /// use hxcfe::Hxcfe;
+    /// 
+    /// let hxcfe = Hxcfe::get();
+    /// println!("HxCFE version: {}", hxcfe.version());
+    /// ```
     pub fn get() -> &'static Hxcfe {
         &HXCFE_INSTANCE
     }
 
+    /// Get the version string of the HxC library.
     pub fn version(&self) -> &str {
         let version = unsafe { hxcfe_getVersion(self.handler) };
         let version = unsafe { CStr::from_ptr(version) };
         version.to_str().unwrap()
     }
 
+    /// Create an image loader manager for loading and saving floppy disk images.
+    /// 
+    /// # Returns
+    /// `Some(ImgLoaderManager)` on success, `None` if initialization fails.
     pub fn loaders_manager<'hfe>(&'hfe self) -> Option<ImgLoaderManager> {
         ImgLoaderManager::new(self)
     }
 
+    /// Create a layout manager for working with floppy disk layouts.
+    /// 
+    /// # Returns
+    /// `Some(LayoutManager)` on success, `None` if initialization fails.
     pub fn layout_manager<'hfe>(&'hfe self) -> Option<LayoutManager> {
         LayoutManager::new(self)
     }
 
+    /// Create a file system manager for accessing files on floppy disk images.
+    /// 
+    /// # Returns
+    /// `Some(FileSystemManager)` on success, `None` if initialization fails.
     pub fn file_system_manager<'hfe>(&'hfe self) -> Option<FileSystemManager<'hfe>> {
         FileSystemManager::new(self)
     }

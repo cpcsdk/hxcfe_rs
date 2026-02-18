@@ -41,11 +41,17 @@ impl<'hfe> LayoutManager<'hfe> {
 
     pub fn layout_name(&self, at: i32) -> &str {
         let name = unsafe { hxcfe_getXmlLayoutName(self.handler, at) };
-        unsafe { CStr::from_ptr(name) }.to_str().unwrap()
+        if name.is_null() {
+            return "";
+        }
+        unsafe { CStr::from_ptr(name) }.to_str().unwrap_or("")
     }
 
     pub fn layout_description(&self, at: i32) -> &str {
         let desc = unsafe { hxcfe_getXmlLayoutDesc(self.handler, at) };
-        unsafe { CStr::from_ptr(desc) }.to_str().unwrap()
+        if desc.is_null() {
+            return "";
+        }
+        unsafe { CStr::from_ptr(desc) }.to_str().unwrap_or("")
     }
 }
