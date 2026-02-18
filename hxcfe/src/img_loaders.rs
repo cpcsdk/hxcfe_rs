@@ -61,12 +61,18 @@ pub struct ImgLoader<'mngr> {
 impl<'mngr> ImgLoader<'mngr> {
     pub fn name(&self) -> &str {
         let name = unsafe { hxcfe_imgGetLoaderName(self.manager.handler, self.idx) };
-        unsafe { CStr::from_ptr(name) }.to_str().unwrap()
+        if name.is_null() {
+            return "";
+        }
+        unsafe { CStr::from_ptr(name) }.to_str().unwrap_or("")
     }
 
     pub fn ext(&self) -> &str {
         let ext = unsafe { hxcfe_imgGetLoaderExt(self.manager.handler, self.idx) };
-        unsafe { CStr::from_ptr(ext) }.to_str().unwrap()
+        if ext.is_null() {
+            return "";
+        }
+        unsafe { CStr::from_ptr(ext) }.to_str().unwrap_or("")
     }
 
     pub fn access(&self) -> ImgLoaderAccess {
@@ -76,7 +82,10 @@ impl<'mngr> ImgLoader<'mngr> {
 
     pub fn description(&self) -> &str {
         let desc = unsafe { hxcfe_imgGetLoaderDesc(self.manager.handler, self.idx) };
-        unsafe { CStr::from_ptr(desc) }.to_str().unwrap()
+        if desc.is_null() {
+            return "";
+        }
+        unsafe { CStr::from_ptr(desc) }.to_str().unwrap_or("")
     }
 
     pub fn load<P: AsRef<Path>>(&self, p: P) -> Result<Img, HxcfeError> {
