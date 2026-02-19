@@ -3,7 +3,7 @@ resolver="2"
 members = [
 	"hxcfe-sys",
 	"hxcfe"
-]
+, "hxcfe_cli"]
 
 [workspace.dependencies]
 
