@@ -302,7 +302,7 @@ mod test {
     fn version() {
         let _locker = TESTS.lock();
         let hxcfe = Hxcfe::get();
-        assert_eq!(hxcfe.version(), "2.14.12.1");
+        assert_eq!(hxcfe.version(), "2.16.15.1");
     }
 
     #[test]

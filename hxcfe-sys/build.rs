@@ -32,10 +32,22 @@ fn main() {
 
     // Check if we should compile with MSVC or with make  
     if target.contains("windows-msvc") {
-        eprintln!("Building libhxcfe with MSVC using cc crate");
+        eprintln!("Building libhxcfe and libhxcadaptor with MSVC using cc crate");
         
         // Collect all .c files from sources directory, excluding test files and examples
         let mut c_files = Vec::new();
+        
+        // Add libhxcadaptor C files
+        for entry in WalkDir::new(&libhxcadaptor_sources)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().map_or(false, |ext| ext == "c"))
+        {
+            c_files.push(entry.path().to_path_buf());
+        }
+        eprintln!("Found {} C files in libhxcadaptor", c_files.len());
+        
+        // Add libhxcfe C files
         for entry in WalkDir::new(&sources_dir)
             .into_iter()
             .filter_map(|e| e.ok())
@@ -45,7 +57,8 @@ fn main() {
             let path_str = path.to_string_lossy();
             // Skip test files, examples, demos, command-line tools, Generic templates,
             // Windows GUI files (adfvolinfo.c, nt4_dev.c), fuzzing tests, xmlwf utility,
-            // FATIOlib Main.c (test program), command-line programs with main()
+            // FATIOlib Main.c (test program), command-line programs with main(),
+            // bmptoh.c (convert tool with main() - needs sysexits.h)
             // NOTE: Now including minizip, xdms, imz_loader, dms_loader (enabled via unistd.h shim)
             if path_str.contains("test") 
                 || path_str.contains("example")
@@ -62,6 +75,7 @@ fn main() {
                 || path_str.contains("xdms.c")  // Command-line program (has main()), not needed for library
                 || path_str.contains("minizip.c")  // Command-line program (has main())
                 || path_str.contains("miniunz.c")  // Command-line program (has main())
+                || path_str.contains("bmptoh.c")  // Convert tool with main(), needs sysexits.h (POSIX)
                 || path_str.contains("programs")  // CLI utilities
             {
                 continue;
@@ -69,7 +83,7 @@ fn main() {
             c_files.push(path.to_path_buf());
         }
 
-        eprintln!("Found {} C files to compile", c_files.len());
+        eprintln!("Found {} total C files to compile (libhxcfe + libhxcadaptor)", c_files.len());
         
         // All loaders now enabled via Windows unistd.h shim (src/win_compat/unistd.h)
         // ✅ ADZ: gzip-compressed disk images (zlib with gzip support)
@@ -90,12 +104,13 @@ fn main() {
         build
             .include(&sources_dir)
             .include(&libhxcadaptor_sources)
+            .include(base.parent().unwrap().join("libusbhxcfe/sources"))  // For usb_hxcfloppyemulator.h
             .include(base.parent().unwrap().join("build"))
             .include(sources_dir.join("thirdpartylibs/zlib"))
             .include(sources_dir.join("thirdpartylibs/zlib/contrib/minizip"))  // For IMZ loader
             .include(sources_dir.join("thirdpartylibs/xdms"))  // For DMS loader
             .include(sources_dir.join("thirdpartylibs/xdms/xdms-1.3.2/src"))  // For DMS loader headers
-            .include(sources_dir.join("thirdpartylibs/expat/expat-2.5.0/lib"))
+            .include(sources_dir.join("thirdpartylibs/expat/lib"))  // Updated path for expat 2.x
             .include(sources_dir.join("thirdpartylibs/FATIOlib"))
             .include(sources_dir.join("thirdpartylibs/adflib/Lib"))
             .include(sources_dir.join("thirdpartylibs/adflib/Lib/Win32"))
@@ -104,17 +119,19 @@ fn main() {
             // Z_SOLO removed: gzip support now enabled via Windows unistd.h shim (src/win_compat/unistd.h)
             // This enables ADZ, IMZ, and DMS loaders
             .define("XML_STATIC", None)  // Use static linking for expat XML library
+            .define("XML_GE", "1")  // Enable general entities in expat (required by expat 2.5+)
+            .define("XML_DTD", "1")  // Enable DTD processing in expat
             .warnings(false)
             .compile("hxcfe");
         
-        // Link hxcadaptor (compiled by hxcadaptor-sys crate)
-        println!("cargo:rustc-link-lib=static=hxcadaptor");
+        // Note: libhxcadaptor is now compiled together with libhxcfe
+        // No separate linking needed
         
         // Link Windows system libraries that might be needed
         println!("cargo:rustc-link-lib=dylib=advapi32");
         println!("cargo:rustc-link-lib=dylib=ws2_32");
         
-        eprintln!("Successfully built libhxcfe with MSVC");
+        eprintln!("Successfully built libhxcfe and libhxcadaptor with MSVC");
     } else {
         println!("cargo:rustc-link-search=native={}", build_dir.display());
         println!("cargo:rustc-link-lib=static=hxcfe");
@@ -137,12 +154,24 @@ fn main() {
     }
 
     // Generate bindings
-    let bindings = bindgen::Builder::default()
+    let mut builder = bindgen::Builder::default()
         .clang_arg(format!("-I{}", include_dir.display()))
+        .clang_arg(format!("-I{}", libhxcadaptor_sources.display()))
         .header("wrapper.h")
         .clang_arg(format!("--target={}", env::var("TARGET").unwrap()))
         .generate_cstr(true)
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks));
+    
+    // Add USB support if feature is enabled
+    #[cfg(feature = "usb")]
+    {
+        let libusbhxcfe_sources = base.parent().unwrap().join("libusbhxcfe/sources");
+        builder = builder
+            .clang_arg(format!("-I{}", libusbhxcfe_sources.display()))
+            .clang_arg("-DENABLE_USB");
+    }
+    
+    let bindings = builder
         .generate()
         .expect("Unable to generate bindings");
     bindings

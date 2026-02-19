@@ -8,10 +8,12 @@ authors = ["Romain Giot <giot.romain@gmail.com>"]
 license = "GPL-3.0-only"
 description = "Bindings for libhxcfe https://github.com/jfdelnero/HxCFloppyEmulator/. Unfinished work, contributions are welcomed."
 readme = "../Readme.md"
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
-hxcadaptor-sys.workspace = true
+[features]
+default = []
+usb = []
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
 make-cmd.workspace = true

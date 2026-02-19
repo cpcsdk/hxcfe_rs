@@ -19,6 +19,13 @@ use crate::sector_access::SectorAccess;
 use crate::{Hxcfe, HxcfeError};
 
 #[derive(Debug)]
+pub struct FloppySizeInfo {
+    pub nb_sectors: i32,
+    pub nb_bad_sectors: i32,
+    pub size: i32,
+}
+
+#[derive(Debug)]
 pub struct Img {
     pub floppydisk: *mut HXCFE_FLOPPY,
     pub(crate) hxcfe: *const Hxcfe,
@@ -78,27 +85,33 @@ impl Img {
     }
 
     pub fn size(&self) -> i32 {
+        self.size_info().size
+    }
+
+    pub fn nb_sectors(&self) -> i32 {
+        self.size_info().nb_sectors
+    }
+
+    pub fn nb_bad_sectors(&self) -> i32 {
+        self.size_info().nb_bad_sectors
+    }
+
+    pub fn size_info(&self) -> FloppySizeInfo {
         let mut nbofsector = 0;
+        let mut nbbadsector = 0;
         let size = unsafe {
             hxcfe_getFloppySize(
                 self.hxcfe.as_ref().unwrap().handler,
                 self.floppydisk,
                 &mut nbofsector,
+                &mut nbbadsector
             )
         };
-        size
-    }
-
-    pub fn nb_sectors(&self) -> i32 {
-        let mut nbofsector = 0;
-        let _ = unsafe {
-            hxcfe_getFloppySize(
-                self.hxcfe.as_ref().unwrap().handler,
-                self.floppydisk,
-                &mut nbofsector,
-            )
-        };
-        nbofsector
+        FloppySizeInfo {
+            nb_sectors: nbofsector,
+            nb_bad_sectors: nbbadsector,
+            size,
+        }
     }
 
     /// Create a duplicate copy of this floppy disk image.

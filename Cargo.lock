@@ -123,17 +123,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 
 [[package]]
-name = "hxcadaptor-sys"
-version = "0.1.5"
-dependencies = [
- "bindgen",
- "cc",
- "copy_dir",
- "dunce",
- "make-cmd",
-]
-
-[[package]]
 name = "hxcfe"
 version = "0.1.5"
 dependencies = [
@@ -151,7 +140,6 @@ dependencies = [
  "cc",
  "copy_dir",
  "dunce",
- "hxcadaptor-sys",
  "make-cmd",
  "walkdir",
 ]
