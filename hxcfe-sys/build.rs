@@ -199,7 +199,7 @@ fn main() {
         .header("wrapper.h")
         .clang_arg(format!("--target={}", env::var("TARGET").unwrap()))
         .generate_cstr(true)
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks));
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()));
     
     // Add USB support if feature is enabled
     if usb_enabled {

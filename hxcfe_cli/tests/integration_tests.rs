@@ -1,5 +1,5 @@
 use std::fs::{File, create_dir_all};
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tempfile::TempDir;
@@ -72,6 +72,7 @@ fn md5_file<P: AsRef<Path>>(path: P) -> Result<String, Box<dyn std::error::Error
 }
 
 struct TestEnv {
+    #[allow(dead_code)]
     temp_dir: TempDir,
     work_dir: PathBuf,
 }

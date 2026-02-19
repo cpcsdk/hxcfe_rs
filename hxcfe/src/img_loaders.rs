@@ -206,7 +206,7 @@ impl ImgLoaderManager {
     /// 
     /// # Returns
     /// `Some(ImgLoader)` if found, `None` if the format is not supported.
-    pub fn loader_for_format(&self, format: &str) -> Option<ImgLoader> {
+    pub fn loader_for_format(&self, format: &str) -> Option<ImgLoader<'_>> {
         let idx = self.get_loader_id_for_format(format)?;
         Self::loader_for_id(&self, idx)
     }
@@ -218,7 +218,7 @@ impl ImgLoaderManager {
     /// 
     /// # Returns
     /// `Some(ImgLoader)` if a compatible loader is found, `None` otherwise.
-    pub fn loader_for_fname<P: AsRef<Path>>(&self, p: P) -> Option<ImgLoader> {
+    pub fn loader_for_fname<P: AsRef<Path>>(&self, p: P) -> Option<ImgLoader<'_>> {
         let p = p.as_ref();
         if !p.exists() {
             return None;

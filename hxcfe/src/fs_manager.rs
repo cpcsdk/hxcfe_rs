@@ -70,7 +70,7 @@ impl<'hfe> FileSystemManager<'hfe> {
         unsafe { hxcfe_getTotalFsSpace(self.handler) }
     }
 
-    pub fn open_dir(&self, folder: &str) -> Result<DirHandler, i32> {
+    pub fn open_dir(&self, folder: &str) -> Result<DirHandler<'_, '_>, i32> {
         let folder = CString::new(folder).map_err(|_| -4)?; // -4 = HXCFE_BADPARAMETER
         let folder = folder.into_raw();
         let dirhandle = unsafe { hxcfe_openDir(self.handler, folder) };
@@ -182,7 +182,7 @@ impl<'hfe> FileSystemManager<'hfe> {
 
 impl<'hfe, 'manager> DirHandler<'hfe, 'manager> {
     pub fn read(&self) -> Result<DirEntry, i32> {
-        let mut entry: HXCFE_FSENTRY = unsafe { MaybeUninit::uninit().assume_init() };
+        let mut entry: HXCFE_FSENTRY = unsafe { MaybeUninit::zeroed().assume_init() };
         let ret = unsafe { hxcfe_readDir(self.fs_manager.handler, self.dirhandle, &mut entry) };
 
         if ret > 0 {

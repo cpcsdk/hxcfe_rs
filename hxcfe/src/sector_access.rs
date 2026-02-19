@@ -5,11 +5,12 @@ use hxcfe_sys::{
     HXCFE_SECTORACCESS,
 };
 
+use std::marker::PhantomData;
 use crate::{Img, TrackEncoding};
 
 pub struct SectorAccess<'img> {
-    img: &'img Img,
     access: *mut HXCFE_SECTORACCESS,
+    _phantom: PhantomData<&'img Img>,
 }
 
 pub struct SectorConfig<'access, 'img> {
@@ -36,7 +37,7 @@ impl SectorConfigArray<'_, '_> {
         self.nb_sectors
     }
 
-    pub fn sector_config(&self, pos: i32) -> SectorConfig {
+    pub fn sector_config(&self, pos: i32) -> SectorConfig<'_, '_> {
         assert!(pos < self.nb_sectors());
         SectorConfig {
             access: self.access,
@@ -53,7 +54,7 @@ impl<'img> SectorAccess<'img> {
         if access.is_null() {
             None
         } else {
-            Some(SectorAccess { img, access })
+            Some(SectorAccess { _phantom: PhantomData, access })
         }
     }
 
@@ -66,7 +67,7 @@ impl<'img> SectorAccess<'img> {
         head: i32,
         track: i32,
         r#type: TrackEncoding,
-    ) -> Option<SectorConfig> {
+    ) -> Option<SectorConfig<'_, '_>> {
         let sector = unsafe { hxcfe_getNextSector(self.access, track, head, r#type as _) };
         if sector.is_null() {
             None
@@ -75,8 +76,6 @@ impl<'img> SectorAccess<'img> {
                 access: self,
                 cfg: sector,
                 track,
-                //        side: head,
-                //        sector: None,
             })
         }
     }
@@ -87,7 +86,7 @@ impl<'img> SectorAccess<'img> {
         track: i32,
         id: i32,
         r#type: TrackEncoding,
-    ) -> Option<SectorConfig> {
+    ) -> Option<SectorConfig<'_, '_>> {
         let sector = unsafe { hxcfe_searchSector(self.access, track, head, id, r#type as _) };
         if sector.is_null() {
             None
@@ -96,8 +95,6 @@ impl<'img> SectorAccess<'img> {
                 access: self,
                 cfg: sector,
                 track,
-                //            side: head,
-                //            sector: Some(id),
             })
         }
     }
@@ -107,7 +104,7 @@ impl<'img> SectorAccess<'img> {
         head: i32,
         track: i32,
         r#type: TrackEncoding,
-    ) -> Option<SectorConfigArray> {
+    ) -> Option<SectorConfigArray<'_, '_>> {
         let mut nb_sectors_found = 0;
         let sca = unsafe {
             hxcfe_getAllTrackSectors(self.access, track, head, r#type as _, &mut nb_sectors_found)

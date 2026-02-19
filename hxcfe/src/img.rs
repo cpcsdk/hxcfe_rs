@@ -55,14 +55,14 @@ impl Img {
         unsafe { self.hxcfe.as_ref().unwrap().save(p, format, self) }
     }
 
-    pub fn interface_mode(&self) -> Interface {
+    pub fn interface_mode(&self) -> Interface<'_> {
         let ifmode = unsafe {
             hxcfe_floppyGetInterfaceMode(self.hxcfe.as_ref().unwrap().handler, self.floppydisk)
         };
         Interface { img: self, ifmode }
     }
 
-    pub fn sector_access(&self) -> Option<SectorAccess> {
+    pub fn sector_access(&self) -> Option<SectorAccess<'_>> {
         SectorAccess::new(self)
     }
 

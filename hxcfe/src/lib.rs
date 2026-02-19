@@ -38,7 +38,9 @@ pub use layouts::LayoutManager;
 
 #[repr(i32)]
 #[derive(enumn::N, PartialEq, Debug)]
+#[allow(non_camel_case_types)]
 /// Error codes returned by HxC Floppy Emulator operations.
+/// Keep C-style naming for compatibility with upstream libhxcfe.
 pub enum HxcfeError {
     /// File is valid and can be loaded
     HXCFE_VALIDFILE = 1,
@@ -60,6 +62,7 @@ pub enum HxcfeError {
 
 #[repr(u32)]
 #[derive(Copy, Clone, enumn::N)]
+#[allow(non_camel_case_types)]
 pub enum TrackEncoding {
     IsoIbmMfm = ISOIBM_MFM_ENCODING,
     Amiga_Mfm = AMIGA_MFM_ENCODING,
@@ -162,7 +165,7 @@ impl Hxcfe {
     /// 
     /// # Returns
     /// `Some(LayoutManager)` on success, `None` if initialization fails.
-    pub fn layout_manager<'hfe>(&'hfe self) -> Option<LayoutManager> {
+    pub fn layout_manager<'hfe>(&'hfe self) -> Option<LayoutManager<'hfe>> {
         LayoutManager::new(self)
     }
 
