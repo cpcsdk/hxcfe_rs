@@ -109,19 +109,19 @@ fn main() -> Result<()> {
 
     // Module list
     if cli.module_list {
-        print_module_list(&hxc)?;
+        print_module_list(hxc)?;
         return Ok(());
     }
 
     // Interface list
     if cli.interface_list {
-        print_interface_list(&hxc)?;
+        print_interface_list(hxc)?;
         return Ok(());
     }
 
     // Raw/Layout list
     if cli.raw_list {
-        print_disk_layout(&hxc)?;
+        print_disk_layout(hxc)?;
         return Ok(());
     }
 
@@ -137,25 +137,25 @@ fn main() -> Result<()> {
 
         // Info command
         if cli.infos {
-            print_file_info(&hxc, input)?;
+            print_file_info(hxc, input)?;
             return Ok(());
         }
 
         // List command
         if cli.list {
-            list_directory(&hxc, input)?;
+            list_directory(hxc, input)?;
             return Ok(());
         }
 
         // Get file command
         if let Some(filename) = &cli.getfile {
-            get_file(&hxc, input, filename)?;
+            get_file(hxc, input, filename)?;
             return Ok(());
         }
 
         // Put file command
         if let Some(file_to_put) = &cli.putfile {
-            put_file(&hxc, input, file_to_put)?;
+            put_file(hxc, input, file_to_put)?;
             return Ok(());
         }
 
@@ -177,7 +177,7 @@ fn main() -> Result<()> {
 
             if let Some(reffile) = &cli.reffile {
                 // Sector by sector copy mode
-                sector_by_sector_copy(&hxc, &img, reffile, &output, format)?;
+                sector_by_sector_copy(hxc, &img, reffile, &output, format)?;
             } else {
                 // Standard conversion
                 img.save(&output, format)

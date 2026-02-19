@@ -41,7 +41,7 @@ fn main() {
         for entry in WalkDir::new(&libhxcadaptor_sources)
             .into_iter()
             .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().map_or(false, |ext| ext == "c"))
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "c"))
         {
             c_files.push(entry.path().to_path_buf());
         }
@@ -51,7 +51,7 @@ fn main() {
         for entry in WalkDir::new(&sources_dir)
             .into_iter()
             .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().map_or(false, |ext| ext == "c"))
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "c"))
         {
             let path = entry.path();
             let path_str = path.to_string_lossy();
@@ -154,7 +154,7 @@ fn main() {
     }
 
     // Generate bindings
-    let mut builder = bindgen::Builder::default()
+    let builder = bindgen::Builder::default()
         .clang_arg(format!("-I{}", include_dir.display()))
         .clang_arg(format!("-I{}", libhxcadaptor_sources.display()))
         .header("wrapper.h")
