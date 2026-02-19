@@ -81,6 +81,11 @@ struct Cli {
     /// Put a file to the floppy image
     #[arg(long = "putfile", value_name = "FILE")]
     putfile: Option<PathBuf>,
+
+    /// Start the USB floppy emulator with specified drive (0-3)
+    #[cfg(feature = "usb")]
+    #[arg(long = "usb", value_name = "DRIVE")]
+    usb: Option<u8>,
 }
 
 fn main() -> Result<()> {
@@ -156,6 +161,13 @@ fn main() -> Result<()> {
         // Put file command
         if let Some(file_to_put) = &cli.putfile {
             put_file(hxc, input, file_to_put)?;
+            return Ok(());
+        }
+
+        // USB emulation
+        #[cfg(feature = "usb")]
+        if let Some(drive) = cli.usb {
+            usb_load(input, drive as i32, &cli)?;
             return Ok(());
         }
 
@@ -475,3 +487,81 @@ fn sector_by_sector_copy(
     Ok(())
 }
 
+#[cfg(feature = "usb")]
+fn usb_load(input: &PathBuf, drive: i32, cli: &Cli) -> Result<()> {
+    use std::io::{self, Write};
+    
+    println!("Starting USB emulation - {}", input.display());
+
+    let hxc = Hxcfe::get();
+
+    // Initialize USB connection
+    let usb = hxcfe::UsbHxcfe::init(hxc)
+        .context("Failed to initialize USB hardware. Is the HxC connected?")?;
+
+    // Load the floppy image
+    // TODO: Add support for raw layout mode with -uselayout option
+    let img = hxc.load(input)
+        .map_err(|e| anyhow::anyhow!("Failed to load image: {}", e))?;
+
+    // Get or determine interface mode
+    let interface_mode = if let Some(ifmode_name) = &cli.interface_mode {
+        hxc.get_interface_mode_id(ifmode_name)
+            .context(format!("Invalid interface mode: {}", ifmode_name))?
+    } else {
+        img.interface_mode().ifmode
+    };
+
+    // Determine double step
+    let double_step = if cli.double_step {
+        1
+    } else if cli.single_step {
+        0
+    } else {
+        // Auto-detect from image
+        if img.nb_tracks() > 42 {
+            0 // Single step for >42 tracks
+        } else {
+            1 // Double step otherwise
+        }
+    };
+
+    // Clamp drive to 0-3
+    let drive = drive & 3;
+
+    // Set interface mode
+    usb.set_interface_mode(interface_mode, double_step, drive)
+        .map_err(|e| anyhow::anyhow!("Failed to set interface mode: {:?}", e))?;
+
+    // Load floppy to USB hardware
+    usb.load_floppy(&img)
+        .map_err(|e| anyhow::anyhow!("Failed to load floppy to USB hardware: {:?}", e))?;
+
+    println!("Interface mode : {}", img.interface_mode().name());
+    println!("Select line : {}", drive);
+    println!("Double Step : {}", if double_step != 0 { "yes" } else { "no" });
+    println!("\nFloppy image loaded to USB hardware.");
+    println!("Type 'q' and press Enter to quit\n");
+
+    // Wait for user to type 'q'
+    let stdin = io::stdin();
+    loop {
+        print!("> ");
+        io::stdout().flush()?;
+        
+        let mut input = String::new();
+        stdin.read_line(&mut input)?;
+        
+        if input.trim().eq_ignore_ascii_case("q") {
+            break;
+        }
+    }
+
+    // Eject floppy
+    usb.eject_floppy()
+        .map_err(|e| anyhow::anyhow!("Failed to eject floppy: {:?}", e))?;
+
+    println!("USB emulation stopped");
+
+    Ok(())
+}

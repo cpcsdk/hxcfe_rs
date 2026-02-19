@@ -5,8 +5,14 @@ mod img_loaders;
 mod layouts;
 mod sector_access;
 
+#[cfg(feature = "usb")]
+mod usb;
+
 pub use fs_manager::FileSystemManager;
 use once_cell::sync::Lazy;
+
+#[cfg(feature = "usb")]
+pub use usb::UsbHxcfe;
 
 use std::{
     ffi::{CStr},

@@ -83,7 +83,30 @@ fn main() {
             c_files.push(path.to_path_buf());
         }
 
-        eprintln!("Found {} total C files to compile (libhxcfe + libhxcadaptor)", c_files.len());
+        let hxcfe_count = c_files.len();
+        eprintln!("Found {} total C files to compile (libhxcfe + libhxcadaptor)", hxcfe_count);
+        
+        // Add USB C files if feature is enabled (check via cargo env var)
+        let usb_enabled = env::var("CARGO_FEATURE_USB").is_ok();
+        if usb_enabled {
+            let libusbhxcfe_sources = base.parent().unwrap().join("libusbhxcfe/sources");
+            for entry in WalkDir::new(&libusbhxcfe_sources)
+                .into_iter()
+                .filter_map(|e| e.ok())
+                .filter(|e| e.path().extension().is_some_and(|ext| ext == "c"))
+            {
+                let path = entry.path();
+                let path_str = path.to_string_lossy();
+                // Skip test files, examples, and platform-specific subdirectories
+                if path_str.contains("test") || path_str.contains("example") 
+                    || path_str.contains("/linux/") || path_str.contains("/macosx/") 
+                    || path_str.contains("\\linux\\") || path_str.contains("\\macosx\\") {
+                    continue;
+                }
+                c_files.push(path.to_path_buf());
+            }
+            eprintln!("Added {} USB C files", c_files.len() - hxcfe_count);
+        }
         
         // All loaders now enabled via Windows unistd.h shim (src/win_compat/unistd.h)
         // ✅ ADZ: gzip-compressed disk images (zlib with gzip support)
@@ -114,8 +137,15 @@ fn main() {
             .include(sources_dir.join("thirdpartylibs/FATIOlib"))
             .include(sources_dir.join("thirdpartylibs/adflib/Lib"))
             .include(sources_dir.join("thirdpartylibs/adflib/Lib/Win32"))
-            .include(sources_dir.join("thirdpartylibs/lz4/lib"))
-            .define("WIN32", None)  // MSVC needs WIN32 defined
+            .include(sources_dir.join("thirdpartylibs/lz4/lib"));
+        
+        // Add USB-specific includes for Windows
+        if usb_enabled {
+            build.include(base.parent().unwrap().join("libusbhxcfe/sources/win32"));  // For ftd2xx.h
+            eprintln!("USB feature enabled - added win32 include path for ftd2xx.h");
+        }
+        
+        build.define("WIN32", None)  // MSVC needs WIN32 defined
             // Z_SOLO removed: gzip support now enabled via Windows unistd.h shim (src/win_compat/unistd.h)
             // This enables ADZ, IMZ, and DMS loaders
             .define("XML_STATIC", None)  // Use static linking for expat XML library
@@ -130,6 +160,14 @@ fn main() {
         // Link Windows system libraries that might be needed
         println!("cargo:rustc-link-lib=dylib=advapi32");
         println!("cargo:rustc-link-lib=dylib=ws2_32");
+        
+        // Link FTDI USB library if USB feature is enabled
+        if usb_enabled {
+            let ftdi_lib_dir = base.parent().unwrap().join("libusbhxcfe/sources/win32");
+            println!("cargo:rustc-link-search=native={}", ftdi_lib_dir.display());
+            println!("cargo:rustc-link-lib=static=ftd2xx");
+            eprintln!("USB feature enabled - linking ftd2xx library");
+        }
         
         eprintln!("Successfully built libhxcfe and libhxcadaptor with MSVC");
     } else {
@@ -154,7 +192,8 @@ fn main() {
     }
 
     // Generate bindings
-    let builder = bindgen::Builder::default()
+    let usb_enabled = env::var("CARGO_FEATURE_USB").is_ok();
+    let mut builder = bindgen::Builder::default()
         .clang_arg(format!("-I{}", include_dir.display()))
         .clang_arg(format!("-I{}", libhxcadaptor_sources.display()))
         .header("wrapper.h")
@@ -163,12 +202,19 @@ fn main() {
         .parse_callbacks(Box::new(bindgen::CargoCallbacks));
     
     // Add USB support if feature is enabled
-    #[cfg(feature = "usb")]
-    {
+    if usb_enabled {
         let libusbhxcfe_sources = base.parent().unwrap().join("libusbhxcfe/sources");
         builder = builder
             .clang_arg(format!("-I{}", libusbhxcfe_sources.display()))
             .clang_arg("-DENABLE_USB");
+        
+        // Add win32 include for FTDI headers on Windows
+        if cfg!(target_os = "windows") {
+            let win32_sources = base.parent().unwrap().join("libusbhxcfe/sources/win32");
+            builder = builder.clang_arg(format!("-I{}", win32_sources.display()));
+        }
+        
+        eprintln!("USB feature enabled - added USB headers to bindgen");
     }
     
     let bindings = builder

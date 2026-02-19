@@ -66,6 +66,14 @@ impl Img {
         SectorAccess::new(self)
     }
 
+    /// Get the raw floppy disk pointer for low-level operations.
+    /// 
+    /// This is primarily used internally for USB operations and other
+    /// low-level library functions.
+    pub fn floppy(&self) -> *mut HXCFE_FLOPPY {
+        self.floppydisk
+    }
+
     // XXX how is it different than nb_tracks_per_head ?
     pub fn nb_tracks(&self) -> i32 {
         let res = unsafe {

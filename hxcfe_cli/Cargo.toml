@@ -3,6 +3,10 @@ name = "hxcfe_cli"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = []
+usb = ["hxcfe/usb"]
+
 [dependencies]
 hxcfe = { path = "../hxcfe" }
 clap = { version = "4.5", features = ["derive"] }
