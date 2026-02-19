@@ -17,12 +17,14 @@ use std::{
 
 use floppy_interface::FloppyInterface;
 use hxcfe_sys::{
-    hxcfe_getVersion, AED6200P_MFM_ENCODING, AMIGA_MFM_ENCODING,
-    APPLEII_GCR1_ENCODING, APPLEII_GCR2_ENCODING, APPLEII_HDDD_A2_GCR1_ENCODING,
-    APPLEII_HDDD_A2_GCR2_ENCODING, APPLEMAC_GCR_ENCODING, ARBURGDAT_ENCODING, ARBURGSYS_ENCODING,
-    C64_GCR_ENCODING, DEC_RX02_M2FM_ENCODING, EMU_FM_ENCODING, HEATHKIT_HS_FM_ENCODING, HXCFE, ISOIBM_FM_ENCODING, ISOIBM_MFM_ENCODING, MEMBRAIN_MFM_ENCODING,
-    MICRALN_HS_FM_ENCODING, NORTHSTAR_HS_MFM_ENCODING, QD_MO5_ENCODING, TYCOM_FM_ENCODING,
-    UNKNOWN_ENCODING, VICTOR9K_GCR_ENCODING,
+    hxcfe_generateFloppy, hxcfe_getFloppyInterfaceModeID, hxcfe_getTrackEncodingName,
+    hxcfe_getVersion, AED6200P_MFM_ENCODING, AMIGA_MFM_ENCODING, APPLEII_GCR1_ENCODING,
+    APPLEII_GCR2_ENCODING, APPLEII_HDDD_A2_GCR1_ENCODING, APPLEII_HDDD_A2_GCR2_ENCODING,
+    APPLEMAC_GCR_ENCODING, ARBURGDAT_ENCODING, ARBURGSYS_ENCODING, C64_GCR_ENCODING,
+    DEC_RX02_M2FM_ENCODING, EMU_FM_ENCODING, HEATHKIT_HS_FM_ENCODING, HXCFE, ISOIBM_FM_ENCODING,
+    ISOIBM_MFM_ENCODING, MEMBRAIN_MFM_ENCODING, MICRALN_HS_FM_ENCODING,
+    NORTHSTAR_HS_MFM_ENCODING, QD_MO5_ENCODING, TYCOM_FM_ENCODING, UNKNOWN_ENCODING,
+    VICTOR9K_GCR_ENCODING,
 };
 pub use img::Img;
 pub use img_loaders::ImgLoaderManager;
@@ -168,6 +170,86 @@ impl Hxcfe {
 
     pub fn floppy_interface<'hfe>(&'hfe self, idx: i32) -> Option<FloppyInterface<'hfe>> {
         FloppyInterface::new(self, idx)
+    }
+
+    /// Generate a new floppy disk image from a directory path.
+    /// 
+    /// Creates a formatted floppy disk image and copies files from the specified directory.
+    /// 
+    /// # Arguments
+    /// * `path` - Path to the directory containing files to add to the image
+    /// * `fs_id` - Filesystem type ID (e.g., FS_720KB_MSDOS_FAT12)
+    /// 
+    /// # Returns
+    /// `Ok(Img)` containing the generated image on success, `Err(HxcfeError)` on failure.
+    /// 
+    /// # Example
+    /// ```no_run
+    /// # use hxcfe::Hxcfe;
+    /// let hxcfe = Hxcfe::get();
+    /// let img = hxcfe.generate_floppy("./my_files", 15).unwrap(); // FS_720KB_MSDOS_FAT12 = 15
+    /// ```
+    pub fn generate_floppy<P: AsRef<Path>>(&self, path: P, fs_id: i32) -> Result<Img, HxcfeError> {
+        use std::ffi::CString;
+        
+        let path_str = path.as_ref().display().to_string();
+        let path_cstr = CString::new(path_str).map_err(|_| HxcfeError::HXCFE_BADPARAMETER)?;
+        let path_ptr = path_cstr.into_raw();
+        
+        let mut err_ret: i32 = 0;
+        let floppydisk = unsafe {
+            hxcfe_generateFloppy(self.handler, path_ptr, fs_id, &mut err_ret)
+        };
+        let _ = unsafe { CString::from_raw(path_ptr) };
+        
+        let err = HxcfeError::n(err_ret).unwrap_or(HxcfeError::HXCFE_INTERNALERROR);
+        if err != HxcfeError::HXCFE_NOERROR || floppydisk.is_null() {
+            Err(err)
+        } else {
+            Ok(Img {
+                floppydisk,
+                hxcfe: self,
+            })
+        }
+    }
+
+    /// Get the interface mode ID from its name.
+    /// 
+    /// # Arguments
+    /// * `name` - Interface mode name (e.g., "IBMPC_DD", "ATARIST_DD")
+    /// 
+    /// # Returns
+    /// `Some(i32)` with the mode ID if found, `None` if the name is invalid.
+    pub fn get_interface_mode_id(&self, name: &str) -> Option<i32> {
+        use std::ffi::CString;
+        
+        let name_cstr = CString::new(name).ok()?;
+        let name_ptr = name_cstr.into_raw();
+        let mode_id = unsafe { hxcfe_getFloppyInterfaceModeID(self.handler, name_ptr) };
+        let _ = unsafe { CString::from_raw(name_ptr) };
+        
+        if mode_id >= 0 {
+            Some(mode_id)
+        } else {
+            None
+        }
+    }
+
+    /// Get the track encoding name from its ID.
+    /// 
+    /// # Arguments
+    /// * `encoding_id` - Track encoding ID
+    /// 
+    /// # Returns
+    /// The encoding name as a string slice, or an empty string if the ID is invalid.
+    pub fn get_track_encoding_name(&self, encoding_id: i32) -> &str {
+        use std::ffi::CStr;
+        
+        let name_ptr = unsafe { hxcfe_getTrackEncodingName(self.handler, encoding_id) };
+        if name_ptr.is_null() {
+            return "";
+        }
+        unsafe { CStr::from_ptr(name_ptr) }.to_str().unwrap_or("")
     }
 
     pub fn load<P: AsRef<Path>>(&self, p: P) -> Result<Img, String> {

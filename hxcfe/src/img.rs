@@ -2,16 +2,21 @@ use std::ffi::CStr;
 
 use std::path::Path;
 
+use hxcfe_sys::hxcfe_floppyDuplicate;
 use hxcfe_sys::hxcfe_floppyGetInterfaceMode;
+use hxcfe_sys::hxcfe_floppySectorBySectorCopy;
 use hxcfe_sys::hxcfe_getFloppyInterfaceModeDesc;
 use hxcfe_sys::hxcfe_getFloppyInterfaceModeName;
 use hxcfe_sys::hxcfe_getFloppySize;
 use hxcfe_sys::hxcfe_getNumberOfSide;
 use hxcfe_sys::hxcfe_getNumberOfTrack;
+use hxcfe_sys::hxcfe_imgDeInitLoader;
+use hxcfe_sys::hxcfe_imgInitLoader;
+use hxcfe_sys::hxcfe_imgUnload;
 use hxcfe_sys::{HXCFE_FLOPPY};
 
 use crate::sector_access::SectorAccess;
-use crate::{Hxcfe};
+use crate::{Hxcfe, HxcfeError};
 
 #[derive(Debug)]
 pub struct Img {
@@ -26,8 +31,15 @@ pub struct Interface<'img> {
 
 impl Drop for Img {
     fn drop(&mut self) {
-        // TODO call
-        //hxcfe_imgUnload( HXCFE_IMGLDR * imgldr_ctx, HXCFE_FLOPPY * floppydisk );
+        // Unload the floppy disk image to free resources
+        // We need to create a temporary loader manager for this
+        unsafe {
+            let loader_ctx = hxcfe_imgInitLoader(self.hxcfe.as_ref().unwrap().handler);
+            if !loader_ctx.is_null() {
+                hxcfe_imgUnload(loader_ctx, self.floppydisk);
+                hxcfe_imgDeInitLoader(loader_ctx);
+            }
+        }
     }
 }
 
@@ -87,6 +99,63 @@ impl Img {
             )
         };
         nbofsector
+    }
+
+    /// Create a duplicate copy of this floppy disk image.
+    /// 
+    /// # Returns
+    /// `Ok(Img)` containing the duplicated image on success, `Err(HxcfeError)` on failure.
+    /// 
+    /// # Example
+    /// ```no_run
+    /// # use hxcfe::Hxcfe;
+    /// let hxcfe = Hxcfe::get();
+    /// let img = hxcfe.load("disk.hfe").unwrap();
+    /// let copy = img.duplicate().unwrap();
+    /// ```
+    pub fn duplicate(&self) -> Result<Img, HxcfeError> {
+        let new_floppy = unsafe {
+            hxcfe_floppyDuplicate(
+                self.hxcfe.as_ref().unwrap().handler,
+                self.floppydisk
+            )
+        };
+        
+        if new_floppy.is_null() {
+            Err(HxcfeError::HXCFE_INTERNALERROR)
+        } else {
+            Ok(Img {
+                floppydisk: new_floppy,
+                hxcfe: self.hxcfe,
+            })
+        }
+    }
+
+    /// Copy sectors from another floppy disk image to this one.
+    /// 
+    /// Performs a sector-by-sector copy operation.
+    /// 
+    /// # Arguments
+    /// * `src` - Source image to copy from
+    /// 
+    /// # Returns
+    /// `Ok(())` on success, `Err(HxcfeError)` on failure.
+    pub fn copy_sectors_from(&mut self, src: &Img) -> Result<(), HxcfeError> {
+        let ret = unsafe {
+            hxcfe_floppySectorBySectorCopy(
+                self.hxcfe.as_ref().unwrap().handler,
+                self.floppydisk,
+                src.floppydisk,
+                0
+            )
+        };
+        
+        let ret = HxcfeError::n(ret).unwrap_or(HxcfeError::HXCFE_INTERNALERROR);
+        if ret == HxcfeError::HXCFE_NOERROR {
+            Ok(())
+        } else {
+            Err(ret)
+        }
     }
 }
 

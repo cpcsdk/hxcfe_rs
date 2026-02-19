@@ -45,8 +45,8 @@ fn main() {
             let path_str = path.to_string_lossy();
             // Skip test files, examples, demos, command-line tools, Generic templates,
             // Windows GUI files (adfvolinfo.c, nt4_dev.c), fuzzing tests, xmlwf utility,
-            // FATIOlib Main.c (test program), xdms (Unix-specific), zlib gz* (gzip, needs unistd.h),
-            // adz_loader (uses gzFile), programs (CLI utilities), contrib (examples)
+            // FATIOlib Main.c (test program), command-line programs with main()
+            // NOTE: Now including minizip, xdms, imz_loader, dms_loader (enabled via unistd.h shim)
             if path_str.contains("test") 
                 || path_str.contains("example")
                 || path_str.contains("Demo")
@@ -59,13 +59,10 @@ fn main() {
                 || path_str.contains("gennmtab")
                 || path_str.contains("FATIOlib\\Main.c")
                 || path_str.contains("FATIOlib/Main.c")
-                || path_str.contains("xdms")
-                || (path_str.contains("zlib") && path_str.contains("\\gz"))
-                || (path_str.contains("zlib") && path_str.contains("/gz"))
-                || path_str.contains("adz_loader")  // Uses gzFile from gzip API
-                || path_str.contains("imz_loader")  // Uses minizip which needs contrib files
+                || path_str.contains("xdms.c")  // Command-line program (has main()), not needed for library
+                || path_str.contains("minizip.c")  // Command-line program (has main())
+                || path_str.contains("miniunz.c")  // Command-line program (has main())
                 || path_str.contains("programs")  // CLI utilities
-                || path_str.contains("contrib")  // Example/utility code (including minizip)
             {
                 continue;
             }
@@ -74,8 +71,11 @@ fn main() {
 
         eprintln!("Found {} C files to compile", c_files.len());
         
-        // Add stub implementations for excluded loaders
-        c_files.push(PathBuf::from("src/loader_stubs.c"));
+        // All loaders now enabled via Windows unistd.h shim (src/win_compat/unistd.h)
+        // ✅ ADZ: gzip-compressed disk images (zlib with gzip support)
+        // ✅ IMZ: ZIP-compressed disk images (minizip)  
+        // ✅ DMS: Amiga DiskMasher compressed (xdms library)
+        // No stubs needed!
         
         // Build with cc crate
         let mut build = cc::Build::new();
@@ -83,18 +83,26 @@ fn main() {
             build.file(&file);
         }
         
+        // On Windows, add our compatibility headers BEFORE standard includes
+        // This allows our unistd.h shim to be found
+        build.include("src/win_compat");
+        
         build
             .include(&sources_dir)
             .include(&libhxcadaptor_sources)
             .include(base.parent().unwrap().join("build"))
             .include(sources_dir.join("thirdpartylibs/zlib"))
+            .include(sources_dir.join("thirdpartylibs/zlib/contrib/minizip"))  // For IMZ loader
+            .include(sources_dir.join("thirdpartylibs/xdms"))  // For DMS loader
+            .include(sources_dir.join("thirdpartylibs/xdms/xdms-1.3.2/src"))  // For DMS loader headers
             .include(sources_dir.join("thirdpartylibs/expat/expat-2.5.0/lib"))
             .include(sources_dir.join("thirdpartylibs/FATIOlib"))
             .include(sources_dir.join("thirdpartylibs/adflib/Lib"))
             .include(sources_dir.join("thirdpartylibs/adflib/Lib/Win32"))
             .include(sources_dir.join("thirdpartylibs/lz4/lib"))
             .define("WIN32", None)  // MSVC needs WIN32 defined
-            .define("Z_SOLO", None)  // Exclude gzip support from zlib (requires unistd.h)
+            // Z_SOLO removed: gzip support now enabled via Windows unistd.h shim (src/win_compat/unistd.h)
+            // This enables ADZ, IMZ, and DMS loaders
             .define("XML_STATIC", None)  // Use static linking for expat XML library
             .warnings(false)
             .compile("hxcfe");
