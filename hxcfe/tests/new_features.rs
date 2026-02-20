@@ -1,6 +1,6 @@
 /// Test the new features added: image duplication, filesystem operations, and utilities
 use hxcfe::{FileSystemId, Hxcfe};
-use std::fs;
+use fs_err as fs;
 use std::path::Path;
 
 #[test]

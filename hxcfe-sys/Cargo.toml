@@ -22,6 +22,7 @@ bindgen.workspace = true
 copy_dir.workspace = true
 cc.workspace = true
 walkdir.workspace = true
+fs-err.workspace = true
 
 [lib]
 name = "hxcfe_sys"

@@ -12,7 +12,7 @@ fn main() {
     // clone source code in output as it is the sole place where we can build
     let base = out_path.join("hxccode");
     if base.exists() {
-        std::fs::remove_dir_all(&base).unwrap();
+        fs_err::remove_dir_all(&base).unwrap();
     }
     copy_dir::copy_dir(&original_base, &base).unwrap();
     let base = base.join("libhxcfe");
@@ -196,7 +196,7 @@ fn main() {
 
         if cfg!(target_os = "windows") {
             eprintln!("Create windows file");
-            std::fs::copy(build_dir.join("libhxcfe.a"), build_dir.join("hxcfe.lib")).unwrap();
+            fs_err::copy(build_dir.join("libhxcfe.a"), build_dir.join("hxcfe.lib")).unwrap();
         }
     }
 

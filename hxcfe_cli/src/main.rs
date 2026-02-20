@@ -414,7 +414,7 @@ fn get_file(hxc: &Hxcfe, image_path: &PathBuf, filename: &str) -> Result<()> {
 
     // Write to local file (strip leading "/" from filename)
     let output_name = filename.strip_prefix("/").unwrap_or(filename);
-    std::fs::write(output_name, &buffer).context("Failed to write output file")?;
+    fs_err::write(output_name, &buffer).context("Failed to write output file")?;
 
     println!("File extracted successfully ({} bytes)", buffer.len());
 
@@ -446,7 +446,7 @@ fn put_file(hxc: &Hxcfe, image_path: &PathBuf, file_to_put: &PathBuf) -> Result<
     }
 
     // Read local file
-    let contents = std::fs::read(file_to_put).context("Failed to read input file")?;
+    let contents = fs_err::read(file_to_put).context("Failed to read input file")?;
 
     // Create file on image (prepend "/" for absolute path)
     let fullpath = format!("/{}", filename);

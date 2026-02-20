@@ -1,4 +1,4 @@
-use std::fs::{File, create_dir_all};
+use fs_err::{File, create_dir_all};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -16,7 +16,7 @@ const TEXT_ZIP: &str = concat!(
 
 /// Extract a zip file to a directory
 fn extract_zip<P: AsRef<Path>>(zip_path: P, dest_dir: P) -> Result<(), Box<dyn std::error::Error>> {
-    let file = File::open(zip_path)?;
+    let file = File::open(zip_path.as_ref())?;
     let mut archive = ZipArchive::new(file)?;
 
     for i in 0..archive.len() {
@@ -73,7 +73,7 @@ fn run_cli(
 
 /// Calculate MD5 hash of a file
 fn md5_file<P: AsRef<Path>>(path: P) -> Result<String, Box<dyn std::error::Error>> {
-    let mut file = File::open(path)?;
+    let mut file = File::open(path.as_ref())?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)?;
     let digest = md5::compute(&buffer);
@@ -182,7 +182,7 @@ fn test_fs_operations_fat720() -> Result<(), Box<dyn std::error::Error>> {
     // Clean up text files
     for i in 1..=6 {
         let path = env.work_dir.join(format!("text0{}.txt", i));
-        let _ = std::fs::remove_file(path);
+        let _ = fs_err::remove_file(path);
     }
 
     // Get files back
@@ -204,7 +204,7 @@ fn test_fs_operations_fat720() -> Result<(), Box<dyn std::error::Error>> {
     // Verify MD5 checksums - must match bash: md5sum text*.txt > md5res.txt; diff md5res.txt md5.txt
     let md5_path = env.work_dir.join("md5.txt");
     if md5_path.exists() {
-        let expected_md5_content = std::fs::read_to_string(&md5_path)?;
+        let expected_md5_content = fs_err::read_to_string(&md5_path)?;
 
         // Generate MD5 output in md5sum format: "hash  filename\n"
         let mut generated_md5_output = String::new();
@@ -246,7 +246,7 @@ fn test_fs_operations_fat1440() -> Result<(), Box<dyn std::error::Error>> {
     // Clean up text files
     for i in 1..=6 {
         let path = env.work_dir.join(format!("text0{}.txt", i));
-        let _ = std::fs::remove_file(path);
+        let _ = fs_err::remove_file(path);
     }
 
     // Get files back
@@ -282,7 +282,7 @@ fn test_fs_operations_amiga_hfe() -> Result<(), Box<dyn std::error::Error>> {
     // Clean up text files
     for i in 1..=6 {
         let path = env.work_dir.join(format!("text0{}.txt", i));
-        let _ = std::fs::remove_file(path);
+        let _ = fs_err::remove_file(path);
     }
 
     // Get files back
@@ -318,7 +318,7 @@ fn test_fs_operations_amiga_adf() -> Result<(), Box<dyn std::error::Error>> {
     // Clean up text files
     for i in 1..=6 {
         let path = env.work_dir.join(format!("text0{}.txt", i));
-        let _ = std::fs::remove_file(path);
+        let _ = fs_err::remove_file(path);
     }
 
     // Get files back

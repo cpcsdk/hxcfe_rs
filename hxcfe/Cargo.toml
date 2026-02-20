@@ -19,3 +19,6 @@ hxcfe-sys.workspace = true
 enumn.workspace = true
 once_cell.workspace = true
 parking_lot.workspace = true
+
+[dev-dependencies]
+fs-err.workspace = true

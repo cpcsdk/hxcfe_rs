@@ -11,8 +11,10 @@ usb = ["hxcfe/usb"]
 hxcfe.workspace = true
 clap.workspace = true
 anyhow.workspace = true
+fs-err.workspace = true
 
 [dev-dependencies]
 zip.workspace = true
 md5.workspace = true
 tempfile.workspace = true
+fs-err.workspace = true
