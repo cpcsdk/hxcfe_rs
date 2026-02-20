@@ -30,9 +30,11 @@ fn main() {
     println!("cargo:rerun-if-changed=src/lib.rs");
     println!("cargo:include={}", include_dir.display());
 
-    // Check if we should compile with MSVC or with make
-    if target.contains("windows-msvc") {
-        eprintln!("Building libhxcfe and libhxcadaptor with MSVC using cc crate");
+    // Check if we should compile with cc crate (MSVC/MinGW) or with GNU make
+    // For Windows (both MSVC and MinGW), use cc crate which handles both toolchains
+    if target.contains("windows") {
+        let toolchain = if target.contains("msvc") { "MSVC" } else { "MinGW/GCC" };
+        eprintln!("Building libhxcfe and libhxcadaptor with {} using cc crate", toolchain);
 
         // Collect all .c files from sources directory, excluding test files and examples
         let mut c_files = Vec::new();
@@ -75,6 +77,7 @@ fn main() {
                 || path_str.contains("xdms.c")  // Command-line program (has main()), not needed for library
                 || path_str.contains("minizip.c")  // Command-line program (has main())
                 || path_str.contains("miniunz.c")  // Command-line program (has main())
+                || path_str.contains("untgz.c")  // Command-line program (has main())
                 || path_str.contains("bmptoh.c")  // Convert tool with main(), needs sysexits.h (POSIX)
                 || path_str.contains("programs")
             // CLI utilities
@@ -160,8 +163,16 @@ fn main() {
             .define("XML_STATIC", None) // Use static linking for expat XML library
             .define("XML_GE", "1") // Enable general entities in expat (required by expat 2.5+)
             .define("XML_DTD", "1") // Enable DTD processing in expat
-            .warnings(false)
-            .compile("hxcfe");
+            .warnings(false);
+
+        // For MinGW, add -static-libgcc to match original Makefile behavior
+        // This statically links libgcc so executables don't require libgcc_s_seh-1.dll
+        if target.contains("gnu") {
+            build.flag("-static-libgcc");
+            eprintln!("MinGW: Added -static-libgcc flag to statically link GCC runtime");
+        }
+
+        build.compile("hxcfe");
 
         // Note: libhxcadaptor is now compiled together with libhxcfe
         // No separate linking needed
@@ -171,20 +182,31 @@ fn main() {
         println!("cargo:rustc-link-lib=dylib=ws2_32");
 
         // Link FTDI USB library if USB feature is enabled
-        if usb_enabled {
+        // Note: The original Makefile builds a separate libusbhxcfe.dll for MinGW using:
+        //   LDFLAGS += -static-libgcc ../sources/win32/libusbhxcfe.def
+        // For Rust static linking, we currently support MSVC only with ftd2xx.lib
+        // TODO: MinGW USB support would require either:
+        //   1. Dynamic loading of ftd2xx.dll at runtime, or
+        //   2. Finding a MinGW-compatible import library for ftd2xx
+        if usb_enabled && target.contains("msvc") {
             let ftdi_lib_dir = base.parent().unwrap().join("libusbhxcfe/sources/win32");
             println!("cargo:rustc-link-search=native={}", ftdi_lib_dir.display());
             println!("cargo:rustc-link-lib=static=ftd2xx");
-            eprintln!("USB feature enabled - linking ftd2xx library");
+            eprintln!("USB feature enabled - linking ftd2xx library (MSVC)");
+        } else if usb_enabled {
+            eprintln!("WARNING: USB feature enabled but ftd2xx.lib is MSVC format only");
+            eprintln!("         USB functionality will not be available with MinGW build");
+            eprintln!("         (Original Makefile builds separate DLL; Rust uses static linking)");
         }
 
-        eprintln!("Successfully built libhxcfe and libhxcadaptor with MSVC");
+        let toolchain_name = if target.contains("msvc") { "MSVC" } else { "MinGW/GCC" };
+        eprintln!("Successfully built libhxcfe and libhxcadaptor with {}", toolchain_name);
     } else {
         println!("cargo:rustc-link-search=native={}", build_dir.display());
         println!("cargo:rustc-link-lib=static=hxcfe");
         println!("cargo:rustc-link-lib=static=hxcadaptor");
 
-        eprintln!("Really build the library");
+        eprintln!("Building with GNU make for non-Windows platforms");
         let o = gnu_make()
             .arg("libhxcfe.a")
             .current_dir(&build_dir)
@@ -193,11 +215,6 @@ fn main() {
         eprintln!("{}", String::from_utf8_lossy(&o.stdout));
         eprintln!("{}", String::from_utf8_lossy(&o.stderr));
         assert!(o.status.success());
-
-        if cfg!(target_os = "windows") {
-            eprintln!("Create windows file");
-            fs_err::copy(build_dir.join("libhxcfe.a"), build_dir.join("hxcfe.lib")).unwrap();
-        }
     }
 
     // Generate bindings

@@ -237,66 +237,77 @@ use hxcfe_sys::{
 /// Corresponds to the filesystem types supported by libhxcfe.
 /// These determine the format used when creating or mounting disk images.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, enumn::N)]
-#[repr(i32)]
+#[repr(u32)]
 pub enum FileSystemId {
     // Atari formats
-    Atari720KbFat12 = FS_720KB_ATARI_FAT12,
-    Atari902KbFat12 = FS_902KB_ATARI_FAT12,
-    Atari360KbFat12 = FS_360KB_ATARI_FAT12,
-    Atari3_42MbFat12 = FS_3_42MB_ATARI_FAT12,
+    Atari720KbFat12 = FS_720KB_ATARI_FAT12 as _,
+    Atari902KbFat12 = FS_902KB_ATARI_FAT12 as _,
+    Atari360KbFat12 = FS_360KB_ATARI_FAT12 as _,
+    Atari3_42MbFat12 = FS_3_42MB_ATARI_FAT12 as _,
 
     // Amiga formats
-    Amiga880KbDos = FS_880KB_AMIGADOS,
-    Amiga1760KbDos = FS_1760KB_AMIGADOS,
+    Amiga880KbDos = FS_880KB_AMIGADOS as _,
+    Amiga1760KbDos = FS_1760KB_AMIGADOS as _,
 
     // MS-DOS 5.25" formats
-    MsDos5P25_300Rpm_160KbFat12 = FS_5P25_300RPM_160KB_MSDOS_FAT12,
-    MsDos5P25_360Rpm_160KbFat12 = FS_5P25_360RPM_160KB_MSDOS_FAT12,
-    MsDos5P25_300Rpm_180KbFat12 = FS_5P25_300RPM_180KB_MSDOS_FAT12,
-    MsDos5P25_360Rpm_180KbFat12 = FS_5P25_360RPM_180KB_MSDOS_FAT12,
-    MsDos5P25Ss_300Rpm_320KbFat12 = FS_5P25_SS_300RPM_320KB_MSDOS_FAT12,
-    MsDos5P25Ss_360Rpm_320KbFat12 = FS_5P25_SS_360RPM_320KB_MSDOS_FAT12,
-    MsDos5P25Ds_300Rpm_320KbFat12 = FS_5P25_DS_300RPM_320KB_MSDOS_FAT12,
-    MsDos5P25Ds_360Rpm_320KbFat12 = FS_5P25_DS_360RPM_320KB_MSDOS_FAT12,
-    MsDos5P25Ds_300Rpm_360KbFat12 = FS_5P25_DS_300RPM_360KB_MSDOS_FAT12,
-    MsDos5P25Ds_360Rpm_360KbFat12 = FS_5P25_DS_360RPM_360KB_MSDOS_FAT12,
-    MsDos5P25_300Rpm_1200KbFat12 = FS_5P25_300RPM_1200KB_MSDOS_FAT12,
-    MsDos5P25_300Rpm_1230KbFat12 = FS_5P25_300RPM_1230KB_MSDOS_FAT12,
+    MsDos5P25_300Rpm_160KbFat12 = FS_5P25_300RPM_160KB_MSDOS_FAT12 as _,
+    MsDos5P25_360Rpm_160KbFat12 = FS_5P25_360RPM_160KB_MSDOS_FAT12 as _,
+    MsDos5P25_300Rpm_180KbFat12 = FS_5P25_300RPM_180KB_MSDOS_FAT12 as _,
+    MsDos5P25_360Rpm_180KbFat12 = FS_5P25_360RPM_180KB_MSDOS_FAT12 as _,
+    MsDos5P25Ss_300Rpm_320KbFat12 = FS_5P25_SS_300RPM_320KB_MSDOS_FAT12 as _,
+    MsDos5P25Ss_360Rpm_320KbFat12 = FS_5P25_SS_360RPM_320KB_MSDOS_FAT12 as _,
+    MsDos5P25Ds_300Rpm_320KbFat12 = FS_5P25_DS_300RPM_320KB_MSDOS_FAT12 as _,
+    MsDos5P25Ds_360Rpm_320KbFat12 = FS_5P25_DS_360RPM_320KB_MSDOS_FAT12 as _,
+    MsDos5P25Ds_300Rpm_360KbFat12 = FS_5P25_DS_300RPM_360KB_MSDOS_FAT12 as _,
+    MsDos5P25Ds_360Rpm_360KbFat12 = FS_5P25_DS_360RPM_360KB_MSDOS_FAT12 as _,
+    MsDos5P25_300Rpm_1200KbFat12 = FS_5P25_300RPM_1200KB_MSDOS_FAT12 as _,
+    MsDos5P25_300Rpm_1230KbFat12 = FS_5P25_300RPM_1230KB_MSDOS_FAT12 as _,
 
     // MS-DOS 3.5" formats
-    MsDos3P5Ds_300Rpm_640KbFat12 = FS_3P5_DS_300RPM_640KB_MSDOS_FAT12,
-    MsDos720KbFat12 = FS_720KB_MSDOS_FAT12,
-    MsDos738KbFat12 = FS_738KB_MSDOS_FAT12,
-    MsDos800KbFat12 = FS_800KB_MSDOS_FAT12,
-    MsDos820KbFat12 = FS_820KB_MSDOS_FAT12,
-    MsDos1_44MbFat12 = FS_1_44MB_MSDOS_FAT12,
-    MsDos1_476MbFat12 = FS_1_476MB_MSDOS_FAT12,
-    MsDos1_600MbFat12 = FS_1_600MB_MSDOS_FAT12,
-    MsDos1_640MbFat12 = FS_1_640MB_MSDOS_FAT12,
-    MsDos1_68MbFat12 = FS_1_68MB_MSDOS_FAT12,
-    MsDos1_722MbFat12 = FS_1_722MB_MSDOS_FAT12,
-    MsDos1_743MbFat12 = FS_1_743MB_MSDOS_FAT12,
-    MsDos1_764MbFat12 = FS_1_764MB_MSDOS_FAT12,
-    MsDos1_785MbFat12 = FS_1_785MB_MSDOS_FAT12,
-    MsDos2_50MbFat12 = FS_2_50MB_MSDOS_FAT12,
-    MsDos2_88MbFat12 = FS_2_88MB_MSDOS_FAT12,
-    MsDos3_38MbFat12 = FS_3_38MB_MSDOS_FAT12,
-    MsDos4_50MbFat12 = FS_4_50MB_MSDOS_FAT12,
-    MsDos5_35MbFat12 = FS_5_35MB_MSDOS_FAT12,
-    MsDos5_35MbBFat12 = FS_5_35MB_B_MSDOS_FAT12,
-    MsDos6_78MbFat12 = FS_6_78MB_MSDOS_FAT12,
-    MsDos16MbFat12 = FS_16MB_MSDOS_FAT12,
+    MsDos3P5Ds_300Rpm_640KbFat12 = FS_3P5_DS_300RPM_640KB_MSDOS_FAT12 as _,
+    MsDos720KbFat12 = FS_720KB_MSDOS_FAT12 as _,
+    MsDos738KbFat12 = FS_738KB_MSDOS_FAT12 as _,
+    MsDos800KbFat12 = FS_800KB_MSDOS_FAT12 as _,
+    MsDos820KbFat12 = FS_820KB_MSDOS_FAT12 as _,
+    MsDos1_44MbFat12 = FS_1_44MB_MSDOS_FAT12 as _,
+    MsDos1_476MbFat12 = FS_1_476MB_MSDOS_FAT12 as _,
+    MsDos1_600MbFat12 = FS_1_600MB_MSDOS_FAT12 as _,
+    MsDos1_640MbFat12 = FS_1_640MB_MSDOS_FAT12 as _,
+    MsDos1_68MbFat12 = FS_1_68MB_MSDOS_FAT12 as _,
+    MsDos1_722MbFat12 = FS_1_722MB_MSDOS_FAT12 as _,
+    MsDos1_743MbFat12 = FS_1_743MB_MSDOS_FAT12 as _,
+    MsDos1_764MbFat12 = FS_1_764MB_MSDOS_FAT12 as _,
+    MsDos1_785MbFat12 = FS_1_785MB_MSDOS_FAT12 as _,
+    MsDos2_50MbFat12 = FS_2_50MB_MSDOS_FAT12 as _,
+    MsDos2_88MbFat12 = FS_2_88MB_MSDOS_FAT12 as _,
+    MsDos3_38MbFat12 = FS_3_38MB_MSDOS_FAT12 as _,
+    MsDos4_50MbFat12 = FS_4_50MB_MSDOS_FAT12 as _,
+    MsDos5_35MbFat12 = FS_5_35MB_MSDOS_FAT12 as _,
+    MsDos5_35MbBFat12 = FS_5_35MB_B_MSDOS_FAT12 as _,
+    MsDos6_78MbFat12 = FS_6_78MB_MSDOS_FAT12 as _,
+    MsDos16MbFat12 = FS_16MB_MSDOS_FAT12 as _,
 }
 
 impl FileSystemId {
     /// Create from raw filesystem ID, returning None if invalid.
+    /// Accepts i32 for backward compatibility.
     pub fn from_i32(id: i32) -> Option<Self> {
+        Self::n(id as u32)
+    }
+
+    /// Create from raw filesystem ID (u32).
+    pub fn from_u32(id: u32) -> Option<Self> {
         Self::n(id)
     }
 
-    /// Get the raw filesystem ID value.
+    /// Get the raw filesystem ID value as i32.
     pub const fn get(self) -> i32 {
         self as i32
+    }
+
+    /// Get the raw filesystem ID value as u32.
+    pub const fn get_u32(self) -> u32 {
+        self as u32
     }
 
     /// Get a human-readable description of this filesystem type.
@@ -349,6 +360,12 @@ impl FileSystemId {
 impl From<FileSystemId> for i32 {
     fn from(id: FileSystemId) -> i32 {
         id as i32
+    }
+}
+
+impl From<FileSystemId> for u32 {
+    fn from(id: FileSystemId) -> u32 {
+        id as u32
     }
 }
 

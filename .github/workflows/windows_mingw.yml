@@ -1,4 +1,4 @@
-name: Windows MINGW build
+name: Windows MinGW build
 
 on:
   push:
@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-windows:
+  build-windows-mingw:
 
     runs-on: windows-latest
     steps:
@@ -20,9 +20,11 @@ jobs:
         platform: x64
     - uses: actions/checkout@v3
     - run: git submodule update --init --recursive
-    - uses: houseabsolute/actions-rust-cross@v0
+    - name: Install Rust nightly toolchain (GNU)
+      uses: dtolnay/rust-toolchain@nightly
       with:
-          target:  x86_64-pc-windows-gnu
-          command: test
-          toolchain: nightly-x86_64-pc-windows-gnu
-          args: --release 
+        targets: x86_64-pc-windows-gnu
+    - name: Build
+      run: cargo build --target x86_64-pc-windows-gnu --verbose
+    - name: Run tests
+      run: cargo test --target x86_64-pc-windows-gnu --verbose 
