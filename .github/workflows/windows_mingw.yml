@@ -31,28 +31,11 @@ jobs:
       uses: dtolnay/rust-toolchain@nightly
       with:
         targets: x86_64-pc-windows-gnu
-    - name: Make rustup/cargo available in MSYS2 shell
-      run: |
-        # Typical rustup locations on GitHub Windows runners
-        for d in "$USERPROFILE/.cargo/bin" "$USERPROFILE/AppData/Local/Cargo/bin" ; do
-          if [ -d "$d" ]; then
-            # Convert Windows path to MSYS path and export it
-            msysd="$(cygpath -u "$d")"
-            echo "Adding to PATH: $msysd"
-            export PATH="$msysd:$PATH"
-            echo "$msysd" >> "$GITHUB_PATH"
-          fi
-        done
-
-        command -v rustup || true
-        command -v cargo || true
-        cargo --version
-        rustc --version
     - name: Configure environment
       run: |
         echo "CC=gcc" >> $GITHUB_ENV
         echo "CXX=g++" >> $GITHUB_ENV
     - name: Build
-      run: cargo build --target x86_64-pc-windows-gnu --verbose
+      run: ~/.cargo build --target x86_64-pc-windows-gnu --verbose
     - name: Run tests
-      run: cargo test --target x86_64-pc-windows-gnu --verbose 
+      run: ~/.cargo test --target x86_64-pc-windows-gnu --verbose 
