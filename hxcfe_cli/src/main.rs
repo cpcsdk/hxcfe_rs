@@ -1,6 +1,8 @@
 use anyhow::{Context, Result};
 use clap::Parser;
-use hxcfe::{DriveId, FileSystemId, Hxcfe, InterfaceIndex, LayoutIndex};
+use hxcfe::{FileSystemId, Hxcfe, InterfaceIndex, LayoutIndex};
+#[cfg(feature = "usb")]
+use hxcfe::DriveId;
 use std::path::PathBuf;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");

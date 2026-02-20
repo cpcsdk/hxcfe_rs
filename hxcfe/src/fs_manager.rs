@@ -17,7 +17,7 @@ use crate::{img::Img, types::DirHandle, FileHandle, FileSystemId, Hxcfe, HxcfeEr
 /// Converts a Rust string to CString, passes it to the closure, and ensures proper cleanup.
 fn with_cstring<F, R>(s: &str, f: F) -> Result<R, i32>
 where
-    F: FnOnce(*const i8) -> R,
+    F: FnOnce(*mut i8) -> R,
 {
     let cstring = CString::new(s).map_err(|_| HxcfeError::HXCFE_BADPARAMETER as i32)?;
     let raw = cstring.into_raw();
@@ -83,7 +83,7 @@ impl<'hfe> FileSystemManager<'hfe> {
     }
 
     pub fn open_dir(&self, folder: &str) -> Result<DirHandler<'_, '_>, i32> {
-        let dirhandle = with_cstring(folder, |folder| {
+        let dirhandle = with_cstring(folder, |folder: *mut i8| {
             unsafe { hxcfe_openDir(self.handler, folder) }
         })?;
 
@@ -98,7 +98,7 @@ impl<'hfe> FileSystemManager<'hfe> {
     }
 
     pub fn open_file(&self, filename: &str) -> Result<FileHandle, i32> {
-        let filehandle = with_cstring(filename, |filename| {
+        let filehandle = with_cstring(filename, |filename: *mut i8| {
             unsafe { hxcfe_openFile(self.handler, filename) }
         })?;
 
@@ -110,7 +110,7 @@ impl<'hfe> FileSystemManager<'hfe> {
     }
 
     pub fn create_file(&self, filename: &str) -> Result<FileHandle, i32> {
-        let filehandle = with_cstring(filename, |filename| {
+        let filehandle = with_cstring(filename, |filename: *mut i8| {
             unsafe { hxcfe_createFile(self.handler, filename) }
         })?;
 
@@ -150,7 +150,7 @@ impl<'hfe> FileSystemManager<'hfe> {
     }
 
     pub fn delete_file(&self, filename: &str) -> Result<(), i32> {
-        let ret = with_cstring(filename, |filename| {
+        let ret = with_cstring(filename, |filename: *mut i8| {
             unsafe { hxcfe_deleteFile(self.handler, filename) }
         })?;
 
@@ -162,7 +162,7 @@ impl<'hfe> FileSystemManager<'hfe> {
     }
 
     pub fn create_dir(&self, dirname: &str) -> Result<(), i32> {
-        let ret = with_cstring(dirname, |dirname| {
+        let ret = with_cstring(dirname, |dirname: *mut i8| {
             unsafe { hxcfe_createDir(self.handler, dirname) }
         })?;
 
@@ -174,7 +174,7 @@ impl<'hfe> FileSystemManager<'hfe> {
     }
 
     pub fn remove_dir(&self, dirname: &str) -> Result<(), i32> {
-        let ret = with_cstring(dirname, |dirname| {
+        let ret = with_cstring(dirname, |dirname: *mut i8| {
             unsafe { hxcfe_removeDir(self.handler, dirname) }
         })?;
 

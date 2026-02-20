@@ -1,5 +1,5 @@
 /// Test the new features added: image duplication, filesystem operations, and utilities
-use hxcfe::Hxcfe;
+use hxcfe::{Hxcfe, FileSystemId};
 use std::fs;
 use std::path::Path;
 

@@ -201,7 +201,7 @@ impl Hxcfe {
     /// ```no_run
     /// # use hxcfe::{Hxcfe, FileSystemId};
     /// let hxcfe = Hxcfe::get();
-    /// let img = hxcfe.generate_floppy("./my_files", FileSystemId::new(15)).unwrap(); // FS_720KB_MSDOS_FAT12 = 15
+    /// let img = hxcfe.generate_floppy("./my_files", FileSystemId::from_i32(15).unwrap()).unwrap(); // FS_720KB_MSDOS_FAT12 = 15
     /// ```
     pub fn generate_floppy<P: AsRef<Path>>(&self, path: P, fs_id: FileSystemId) -> Result<Img, HxcfeError> {
         use std::ffi::CString;
@@ -308,7 +308,7 @@ mod test {
 
     use once_cell::sync::Lazy;
 
-    use crate::Hxcfe;
+    use crate::{Hxcfe, LayoutIndex, InterfaceIndex};
 
     static TESTS: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 

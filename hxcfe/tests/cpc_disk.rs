@@ -1,4 +1,4 @@
-use hxcfe::{Hxcfe, TrackEncoding, HeadId, TrackId, SectorId};
+use hxcfe::{Hxcfe, TrackEncoding, HeadId, TrackId, SectorId, FileSystemId};
 
 #[test]
 fn test_cpc_experts_hfe() {
@@ -122,7 +122,7 @@ fn test_create_amiga_disk() {
     println!("Creating blank Amiga DD disk...");
     
     let temp_path = "test_blank.adf";
-    match hxcfe.generate_floppy(temp_path, 1) { // fs_id=1 might be AmigaDOS
+    match hxcfe.generate_floppy(temp_path, FileSystemId::Amiga880KbDos) {
         Ok(img) => {
             let interface = img.interface_mode();
             println!("✓ Created: {} - {}", interface.name(), interface.description());
@@ -132,7 +132,7 @@ fn test_create_amiga_disk() {
             
             // Try to mount it with AmigaDOS filesystem
             let fsmngr = hxcfe.file_system_manager().unwrap();
-            fsmngr.select_fs(1); // FS_880KB_AMIGADOS
+            fsmngr.select_fs(FileSystemId::Amiga880KbDos);
             let result = fsmngr.mount(&img);
             
             println!("\nMounting as AmigaDOS: result = {}", result);

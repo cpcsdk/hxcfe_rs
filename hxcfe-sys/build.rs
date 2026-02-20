@@ -28,6 +28,7 @@ fn main() {
     //  generate cargo information
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=wrapper.h");
+    println!("cargo:rerun-if-changed=src/lib.rs");
     println!("cargo:include={}", include_dir.display());
 
     // Check if we should compile with MSVC or with make  

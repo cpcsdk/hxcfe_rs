@@ -4,49 +4,6 @@
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
-// Filesystem type constants from libhxcfe.h
-// These correspond to the anonymous enum starting at line 650
-pub const FS_720KB_ATARI_FAT12: i32 = 0;
-pub const FS_902KB_ATARI_FAT12: i32 = 1;
-pub const FS_360KB_ATARI_FAT12: i32 = 2;
-pub const FS_880KB_AMIGADOS: i32 = 3;
-pub const FS_5P25_300RPM_160KB_MSDOS_FAT12: i32 = 4;
-pub const FS_5P25_360RPM_160KB_MSDOS_FAT12: i32 = 5;
-pub const FS_5P25_300RPM_180KB_MSDOS_FAT12: i32 = 6;
-pub const FS_5P25_360RPM_180KB_MSDOS_FAT12: i32 = 7;
-pub const FS_5P25_SS_300RPM_320KB_MSDOS_FAT12: i32 = 8;
-pub const FS_5P25_SS_360RPM_320KB_MSDOS_FAT12: i32 = 9;
-pub const FS_5P25_DS_300RPM_320KB_MSDOS_FAT12: i32 = 10;
-pub const FS_5P25_DS_360RPM_320KB_MSDOS_FAT12: i32 = 11;
-pub const FS_5P25_DS_300RPM_360KB_MSDOS_FAT12: i32 = 12;
-pub const FS_5P25_DS_360RPM_360KB_MSDOS_FAT12: i32 = 13;
-pub const FS_3P5_DS_300RPM_640KB_MSDOS_FAT12: i32 = 14;
-pub const FS_720KB_MSDOS_FAT12: i32 = 15;
-pub const FS_5P25_300RPM_1200KB_MSDOS_FAT12: i32 = 16;
-pub const FS_1_44MB_MSDOS_FAT12: i32 = 17;
-pub const FS_1_68MB_MSDOS_FAT12: i32 = 18;
-pub const FS_2_88MB_MSDOS_FAT12: i32 = 19;
-pub const FS_3_38MB_MSDOS_FAT12: i32 = 20;
-pub const FS_3_42MB_ATARI_FAT12: i32 = 21;
-pub const FS_6_78MB_MSDOS_FAT12: i32 = 22;
-pub const FS_16MB_MSDOS_FAT12: i32 = 23;
-pub const FS_4_50MB_MSDOS_FAT12: i32 = 24;
-pub const FS_2_50MB_MSDOS_FAT12: i32 = 25;
-pub const FS_5_35MB_MSDOS_FAT12: i32 = 26;
-pub const FS_5_35MB_B_MSDOS_FAT12: i32 = 27;
-pub const FS_738KB_MSDOS_FAT12: i32 = 28;
-pub const FS_800KB_MSDOS_FAT12: i32 = 29;
-pub const FS_820KB_MSDOS_FAT12: i32 = 30;
-pub const FS_5P25_300RPM_1230KB_MSDOS_FAT12: i32 = 31;
-pub const FS_1_476MB_MSDOS_FAT12: i32 = 32;
-pub const FS_1_600MB_MSDOS_FAT12: i32 = 33;
-pub const FS_1_640MB_MSDOS_FAT12: i32 = 34;
-pub const FS_1_722MB_MSDOS_FAT12: i32 = 35;
-pub const FS_1_743MB_MSDOS_FAT12: i32 = 36;
-pub const FS_1_764MB_MSDOS_FAT12: i32 = 37;
-pub const FS_1_785MB_MSDOS_FAT12: i32 = 38;
-pub const FS_1760KB_AMIGADOS: i32 = 39;
-
 /// Core HxCFloppyEmulator library functions
 /// 
 /// This module contains functions for floppy disk image manipulation,
