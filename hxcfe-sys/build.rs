@@ -205,34 +205,85 @@ fn main() {
         let toolchain_name = if target.contains("msvc") { "MSVC" } else { "MinGW/GCC" };
         eprintln!("Successfully built libhxcfe and libhxcadaptor with {}", toolchain_name);
     } else {
-        // Build libhxcadaptor first (dependency of libhxcfe)
-        let libhxcadaptor_build_dir = base.parent().unwrap().join("libhxcadaptor/build");
-        eprintln!("Building with GNU make for non-Windows platforms");
-        eprintln!("Building libhxcadaptor...");
-        let o = gnu_make()
-            .arg("libhxcadaptor.a")
-            .current_dir(&libhxcadaptor_build_dir)
-            .output()
-            .expect("failed to build libhxcadaptor");
-        eprintln!("{}", String::from_utf8_lossy(&o.stdout));
-        eprintln!("{}", String::from_utf8_lossy(&o.stderr));
-        assert!(o.status.success(), "libhxcadaptor build failed");
-        
-        // Build libhxcfe
-        eprintln!("Building libhxcfe...");
-        let o = gnu_make()
-            .arg("libhxcfe.a")
-            .current_dir(&build_dir)
-            .output()
-            .expect("failed to build libhxcfe");
-        eprintln!("{}", String::from_utf8_lossy(&o.stdout));
-        eprintln!("{}", String::from_utf8_lossy(&o.stderr));
-        assert!(o.status.success(), "libhxcfe build failed");
-        
-        // Add link search paths (both libraries are copied to build_dir by Makefile)
-        println!("cargo:rustc-link-search=native={}", build_dir.display());
-        println!("cargo:rustc-link-lib=static=hxcfe");
-        println!("cargo:rustc-link-lib=static=hxcadaptor");
+        // Linux/macOS/other Unix platforms
+        eprintln!("Building libhxcfe and libhxcadaptor with cc crate for Unix platforms");
+
+        // Collect all .c files from sources directory, excluding test files and examples
+        let mut c_files = Vec::new();
+
+        // Add libhxcadaptor C files
+        for entry in WalkDir::new(&libhxcadaptor_sources)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "c"))
+        {
+            c_files.push(entry.path().to_path_buf());
+        }
+        eprintln!("Found {} C files in libhxcadaptor", c_files.len());
+
+        // Add libhxcfe C files
+        for entry in WalkDir::new(&sources_dir)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "c"))
+        {
+            let path = entry.path();
+            let path_str = path.to_string_lossy();
+            // Skip test files, examples, demos, command-line tools, etc.
+            if path_str.contains("test") 
+                || path_str.contains("example")
+                || path_str.contains("Demo")
+                || path_str.contains("HxCFloppyEmulator_cmdline")
+                || path_str.contains("Generic")
+                || path_str.contains("adfvolinfo.c")
+                || path_str.contains("nt4_dev.c")
+                || path_str.contains("fuzz")
+                || path_str.contains("xmlwf")
+                || path_str.contains("gennmtab")
+                || path_str.contains("FATIOlib/Main.c")
+                || path_str.contains("xdms.c")  // Command-line program (has main())
+                || path_str.contains("minizip.c")  // Command-line program (has main())
+                || path_str.contains("miniunz.c")  // Command-line program (has main())
+                || path_str.contains("untgz.c")  // Command-line program (has main())
+                || path_str.contains("bmptoh.c")  // Convert tool with main()
+                || path_str.contains("programs")
+            {
+                continue;
+            }
+            c_files.push(path.to_path_buf());
+        }
+
+        eprintln!(
+            "Found {} total C files to compile (libhxcfe + libhxcadaptor)",
+            c_files.len()
+        );
+
+        // Build with cc crate
+        let mut build = cc::Build::new();
+        for file in c_files {
+            build.file(&file);
+        }
+
+        build
+            .include(&sources_dir)
+            .include(&libhxcadaptor_sources)
+            .include(base.parent().unwrap().join("build"))
+            .include(sources_dir.join("thirdpartylibs/zlib"))
+            .include(sources_dir.join("thirdpartylibs/zlib/contrib/minizip"))
+            .include(sources_dir.join("thirdpartylibs/xdms"))
+            .include(sources_dir.join("thirdpartylibs/xdms/xdms-1.3.2/src"))
+            .include(sources_dir.join("thirdpartylibs/expat/lib"))
+            .include(sources_dir.join("thirdpartylibs/FATIOlib"))
+            .include(sources_dir.join("thirdpartylibs/adflib/Lib"))
+            .include(sources_dir.join("thirdpartylibs/lz4/lib"))
+            .define("XML_STATIC", None)
+            .define("XML_GE", "1")
+            .define("XML_DTD", "1")
+            .warnings(false);
+
+        build.compile("hxcfe");
+
+        eprintln!("Successfully built libhxcfe and libhxcadaptor with cc crate");
     }
 
     // Generate bindings
@@ -356,9 +407,11 @@ fn build_wasm(
     // WASM optimization flags (Emscripten recommends -O2 or -O3 for production)
     if target.contains("wasm32") {
         build.flag("-O2");
-        // Emscripten-specific: enable memory growth, disable pthreads (not needed for core lib)
-        build.flag("-sALLOW_MEMORY_GROWTH=1");
-        eprintln!("WASM: Using Emscripten optimization flags");
+        if target.contains("emscripten") {
+            // Emscripten-specific: enable memory growth, disable pthreads (not needed for core lib)
+            build.flag("-sALLOW_MEMORY_GROWTH=1");
+            eprintln!("WASM: Using Emscripten optimization flags");
+        }
     }
 
     build.compile("hxcfe");
