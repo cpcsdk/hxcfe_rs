@@ -31,6 +31,8 @@ fs-err = "3.0"
 zip = "2.2"
 md5 = "0.7"
 tempfile = "3.13"
+assert_cmd = "2.0"
+predicates = "3.0"
 
 [patch.crates-io]
 

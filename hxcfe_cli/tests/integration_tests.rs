@@ -1,7 +1,8 @@
+use assert_cmd::Command;
 use fs_err::{File, create_dir_all};
+use predicates::prelude::*;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use tempfile::TempDir;
 use zip::ZipArchive;
 
@@ -36,41 +37,6 @@ fn extract_zip<P: AsRef<Path>>(zip_path: P, dest_dir: P) -> Result<(), Box<dyn s
     Ok(())
 }
 
-/// Get the path to the hxcfe_cli executable
-fn get_cli_path() -> PathBuf {
-    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    path.push("../target/debug");
-
-    #[cfg(windows)]
-    path.push("hxcfe_cli.exe");
-
-    #[cfg(not(windows))]
-    path.push("hxcfe_cli");
-
-    path
-}
-
-/// Run hxcfe_cli with arguments
-fn run_cli(
-    args: &[&str],
-    work_dir: &Path,
-) -> Result<std::process::Output, Box<dyn std::error::Error>> {
-    let cli_path = get_cli_path();
-
-    let output = Command::new(&cli_path)
-        .args(args)
-        .current_dir(work_dir)
-        .output()?;
-
-    if !output.status.success() {
-        eprintln!("Command failed: {:?}", args);
-        eprintln!("stdout: {}", String::from_utf8_lossy(&output.stdout));
-        eprintln!("stderr: {}", String::from_utf8_lossy(&output.stderr));
-    }
-
-    Ok(output)
-}
-
 /// Calculate MD5 hash of a file
 fn md5_file<P: AsRef<Path>>(path: P) -> Result<String, Box<dyn std::error::Error>> {
     let mut file = File::open(path.as_ref())?;
@@ -102,62 +68,53 @@ impl TestEnv {
     }
 
     fn run_cli(&self, args: &[&str]) -> Result<std::process::Output, Box<dyn std::error::Error>> {
-        run_cli(args, &self.work_dir)
+        Ok(Command::new(assert_cmd::cargo::cargo_bin!("hxcfe_cli"))
+            .args(args)
+            .current_dir(&self.work_dir)
+            .output()?)
     }
 }
 
 #[test]
 fn test_cli_help() {
-    let output = Command::new(get_cli_path())
+    Command::new(assert_cmd::cargo::cargo_bin!("hxcfe_cli"))
         .arg("--help")
-        .output()
-        .expect("Failed to run hxcfe_cli --help");
-
-    assert!(output.status.success());
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("HxC Floppy Emulator"));
-    assert!(stdout.contains("--finput"));
-    assert!(stdout.contains("--modulelist"));
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("HxC Floppy Emulator"))
+        .stdout(predicate::str::contains("--finput"))
+        .stdout(predicate::str::contains("--modulelist"));
 }
 
 #[test]
 fn test_module_list() {
-    let output = Command::new(get_cli_path())
+    Command::new(assert_cmd::cargo::cargo_bin!("hxcfe_cli"))
         .arg("--modulelist")
-        .output()
-        .expect("Failed to run hxcfe_cli --modulelist");
-
-    assert!(output.status.success());
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("libhxcfe file type support list"));
-    assert!(stdout.contains("HXC_HFE"));
-    assert!(stdout.contains("Loaders"));
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("libhxcfe file type support list"))
+        .stdout(predicate::str::contains("HXC_HFE"))
+        .stdout(predicate::str::contains("Loaders"));
 }
 
 #[test]
 fn test_interface_list() {
-    let output = Command::new(get_cli_path())
+    Command::new(assert_cmd::cargo::cargo_bin!("hxcfe_cli"))
         .arg("--interfacelist")
-        .output()
-        .expect("Failed to run hxcfe_cli --interfacelist");
-
-    assert!(output.status.success());
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("Interface mode list"));
-    assert!(stdout.contains("Modes"));
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Interface mode list"))
+        .stdout(predicate::str::contains("Modes"));
 }
 
 #[test]
 fn test_layout_list() {
-    let output = Command::new(get_cli_path())
+    Command::new(assert_cmd::cargo::cargo_bin!("hxcfe_cli"))
         .arg("--rawlist")
-        .output()
-        .expect("Failed to run hxcfe_cli --rawlist");
-
-    assert!(output.status.success());
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("libhxcfe Raw Disk Layout list"));
-    assert!(stdout.contains("Layout"));
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("libhxcfe Raw Disk Layout list"))
+        .stdout(predicate::str::contains("Layout"));
 }
 
 #[test]
