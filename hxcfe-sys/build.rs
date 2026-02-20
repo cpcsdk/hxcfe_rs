@@ -30,9 +30,12 @@ fn main() {
     println!("cargo:rerun-if-changed=src/lib.rs");
     println!("cargo:include={}", include_dir.display());
 
-    // Check if we should compile with cc crate (MSVC/MinGW) or with GNU make
-    // For Windows (both MSVC and MinGW), use cc crate which handles both toolchains
-    if target.contains("windows") {
+    // Check if we should compile with cc crate (MSVC/MinGW/WASM) or with GNU make
+    // For Windows (both MSVC and MinGW) and WASM, use cc crate
+    if target.contains("wasm") {
+        eprintln!("Building libhxcfe and libhxcadaptor for WebAssembly target");
+        build_wasm(&base, &sources_dir, &libhxcadaptor_sources, &out_path, &target);
+    } else if target.contains("windows") {
         let toolchain = if target.contains("msvc") { "MSVC" } else { "MinGW/GCC" };
         eprintln!("Building libhxcfe and libhxcadaptor with {} using cc crate", toolchain);
 
@@ -248,3 +251,103 @@ fn main() {
         .write_to_file(out_path.join("bindings.rs"))
         .expect("Couldn't write bindings!");
 }
+
+fn build_wasm(
+    base: &PathBuf,
+    sources_dir: &PathBuf,
+    libhxcadaptor_sources: &PathBuf,
+    out_path: &PathBuf,
+    target: &str,
+) {
+    // Collect all .c files from sources directory, excluding test files and examples
+    let mut c_files = Vec::new();
+
+    // Add libhxcadaptor C files
+    for entry in WalkDir::new(libhxcadaptor_sources)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "c"))
+    {
+        c_files.push(entry.path().to_path_buf());
+    }
+    eprintln!("Found {} C files in libhxcadaptor", c_files.len());
+
+    // Add libhxcfe C files (same exclusions as Windows build)
+    for entry in WalkDir::new(sources_dir)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "c"))
+    {
+        let path = entry.path();
+        let path_str = path.to_string_lossy();
+        // Skip test files, examples, demos, command-line tools, USB sources (not supported in WASM)
+        if path_str.contains("test")
+            || path_str.contains("example")
+            || path_str.contains("Demo")
+            || path_str.contains("HxCFloppyEmulator_cmdline")
+            || path_str.contains("Generic")
+            || path_str.contains("adfvolinfo.c")
+            || path_str.contains("nt4_dev.c")
+            || path_str.contains("fuzz")
+            || path_str.contains("xmlwf")
+            || path_str.contains("gennmtab")
+            || path_str.contains("FATIOlib\\Main.c")
+            || path_str.contains("FATIOlib/Main.c")
+            || path_str.contains("xdms.c")
+            || path_str.contains("minizip.c")
+            || path_str.contains("miniunz.c")
+            || path_str.contains("untgz.c")
+            || path_str.contains("bmptoh.c")
+            || path_str.contains("programs")
+            || path_str.contains("usb")  // Skip all USB-related files for WASM
+            || path_str.contains("USB")
+            || path_str.contains("ftdi")
+            || path_str.contains("FTDI")
+        {
+            continue;
+        }
+        c_files.push(path.to_path_buf());
+    }
+
+    let hxcfe_count = c_files.len();
+    eprintln!("Found {} total C files to compile for WASM (libhxcfe + libhxcadaptor)", hxcfe_count);
+
+    // Build with cc crate for WASM target
+    let mut build = cc::Build::new();
+    for file in c_files {
+        build.file(&file);
+    }
+
+    build
+        .include(sources_dir)
+        .include(libhxcadaptor_sources)
+        .include(base.parent().unwrap().join("build"))
+        .include(sources_dir.join("thirdpartylibs/zlib"))
+        .include(sources_dir.join("thirdpartylibs/zlib/contrib/minizip"))
+        .include(sources_dir.join("thirdpartylibs/xdms"))
+        .include(sources_dir.join("thirdpartylibs/xdms/xdms-1.3.2/src"))
+        .include(sources_dir.join("thirdpartylibs/expat/lib"))
+        .include(sources_dir.join("thirdpartylibs/FATIOlib"))
+        .include(sources_dir.join("thirdpartylibs/adflib/Lib"))
+        .include(sources_dir.join("thirdpartylibs/lz4/lib"));
+
+    // WASM-specific defines (matching Emscripten Makefile)
+    build
+        .define("XML_STATIC", None)
+        .define("XML_GE", "1")
+        .define("XML_DTD", "1")
+        .warnings(false);
+
+    // WASM optimization flags (Emscripten recommends -O2 or -O3 for production)
+    if target.contains("wasm32") {
+        build.flag("-O2");
+        // Emscripten-specific: enable memory growth, disable pthreads (not needed for core lib)
+        build.flag("-sALLOW_MEMORY_GROWTH=1");
+        eprintln!("WASM: Using Emscripten optimization flags");
+    }
+
+    build.compile("hxcfe");
+
+    eprintln!("Successfully built libhxcfe and libhxcadaptor for WebAssembly");
+}
+
