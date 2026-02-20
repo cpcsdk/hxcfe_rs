@@ -205,11 +205,21 @@ fn main() {
         let toolchain_name = if target.contains("msvc") { "MSVC" } else { "MinGW/GCC" };
         eprintln!("Successfully built libhxcfe and libhxcadaptor with {}", toolchain_name);
     } else {
-        println!("cargo:rustc-link-search=native={}", build_dir.display());
-        println!("cargo:rustc-link-lib=static=hxcfe");
-        println!("cargo:rustc-link-lib=static=hxcadaptor");
-
+        // Build libhxcadaptor first (dependency of libhxcfe)
+        let libhxcadaptor_build_dir = base.parent().unwrap().join("libhxcadaptor/build");
         eprintln!("Building with GNU make for non-Windows platforms");
+        eprintln!("Building libhxcadaptor...");
+        let o = gnu_make()
+            .arg("libhxcadaptor.a")
+            .current_dir(&libhxcadaptor_build_dir)
+            .output()
+            .expect("failed to build libhxcadaptor");
+        eprintln!("{}", String::from_utf8_lossy(&o.stdout));
+        eprintln!("{}", String::from_utf8_lossy(&o.stderr));
+        assert!(o.status.success(), "libhxcadaptor build failed");
+        
+        // Build libhxcfe
+        eprintln!("Building libhxcfe...");
         let o = gnu_make()
             .arg("libhxcfe.a")
             .current_dir(&build_dir)
@@ -217,7 +227,12 @@ fn main() {
             .expect("failed to build libhxcfe");
         eprintln!("{}", String::from_utf8_lossy(&o.stdout));
         eprintln!("{}", String::from_utf8_lossy(&o.stderr));
-        assert!(o.status.success());
+        assert!(o.status.success(), "libhxcfe build failed");
+        
+        // Add link search paths (both libraries are copied to build_dir by Makefile)
+        println!("cargo:rustc-link-search=native={}", build_dir.display());
+        println!("cargo:rustc-link-lib=static=hxcfe");
+        println!("cargo:rustc-link-lib=static=hxcadaptor");
     }
 
     // Generate bindings

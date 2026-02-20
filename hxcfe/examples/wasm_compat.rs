@@ -15,8 +15,19 @@
 //   cargo run --example wasm_compat
 
 use hxcfe::{FileSystemId, Hxcfe};
+
+#[cfg(not(target_family = "wasm"))]
 use std::io::Read;
 
+#[cfg(target_family = "wasm")]
+fn main() {
+    println!("HxC WASM-Compatible Example");
+    println!("============================");
+    println!("This example is designed for WebAssembly targets.");
+    println!("Build with: cargo build --example wasm_compat --target wasm32-unknown-unknown");
+}
+
+#[cfg(not(target_family = "wasm"))]
 fn main() {
     println!("HxC WASM-Compatible Example");
     println!("============================");
@@ -72,11 +83,10 @@ fn process_floppy_image(image_data: &[u8]) -> Result<String, String> {
         info.push_str(&format!("Number of sides: {}\n", img.nb_sides()));
         info.push_str(&format!("Total size: {} bytes\n", img.size()));
         info.push_str(&format!("Interface mode: {}\n", img.interface_mode().name()));
-        info.push_str(&format!("Bitrate: {} bps\n", img.bitrate()));
         
         // Try to access filesystem
         let fs_manager = hxc.file_system_manager()
-            .map_err(|e| format!("Failed to init FS manager: {:?}", e))?;
+            .ok_or_else(|| "Failed to init FS manager".to_string())?;
         
         fs_manager.select_fs(FileSystemId::Atari720KbFat12);
         

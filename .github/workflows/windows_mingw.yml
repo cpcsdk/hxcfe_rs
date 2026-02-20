@@ -13,17 +13,27 @@ jobs:
   build-windows-mingw:
 
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
     steps:
-    - name: Set up MinGW
-      uses: egor-tensin/setup-mingw@v2
+    - uses: msys2/setup-msys2@v2
       with:
-        platform: x64
+        msystem: MINGW64
+        update: true
+        install: >-
+          mingw-w64-x86_64-toolchain
+          make
     - uses: actions/checkout@v3
     - run: git submodule update --init --recursive
     - name: Install Rust nightly toolchain (GNU)
       uses: dtolnay/rust-toolchain@nightly
       with:
         targets: x86_64-pc-windows-gnu
+    - name: Configure environment
+      run: |
+        echo "CC=gcc" >> $GITHUB_ENV
+        echo "CXX=g++" >> $GITHUB_ENV
     - name: Build
       run: cargo build --target x86_64-pc-windows-gnu --verbose
     - name: Run tests
