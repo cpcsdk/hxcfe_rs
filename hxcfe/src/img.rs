@@ -16,7 +16,7 @@ use hxcfe_sys::hxcfe_imgUnload;
 use hxcfe_sys::{HXCFE_FLOPPY};
 
 use crate::sector_access::SectorAccess;
-use crate::{Hxcfe, HxcfeError};
+use crate::{Hxcfe, HxcfeError, InterfaceModeId};
 
 #[derive(Debug)]
 pub struct FloppySizeInfo {
@@ -33,7 +33,7 @@ pub struct Img {
 
 pub struct Interface<'img> {
     pub img: &'img Img,
-    pub ifmode: i32,
+    pub ifmode: InterfaceModeId,
 }
 
 impl Drop for Img {
@@ -59,7 +59,7 @@ impl Img {
         let ifmode = unsafe {
             hxcfe_floppyGetInterfaceMode(self.hxcfe.as_ref().unwrap().handler, self.floppydisk)
         };
-        Interface { img: self, ifmode }
+        Interface { img: self, ifmode: InterfaceModeId::new(ifmode) }
     }
 
     pub fn sector_access(&self) -> Option<SectorAccess<'_>> {
@@ -183,7 +183,7 @@ impl Img {
 impl<'img> Interface<'img> {
     pub fn name(&self) -> &str {
         let res = unsafe {
-            hxcfe_getFloppyInterfaceModeName(self.img.hxcfe.as_ref().unwrap().handler, self.ifmode)
+            hxcfe_getFloppyInterfaceModeName(self.img.hxcfe.as_ref().unwrap().handler, self.ifmode.get())
         };
         if res.is_null() {
             return "";
@@ -193,7 +193,7 @@ impl<'img> Interface<'img> {
 
     pub fn description(&self) -> &str {
         let res = unsafe {
-            hxcfe_getFloppyInterfaceModeDesc(self.img.hxcfe.as_ref().unwrap().handler, self.ifmode)
+            hxcfe_getFloppyInterfaceModeDesc(self.img.hxcfe.as_ref().unwrap().handler, self.ifmode.get())
         };
         if res.is_null() {
             return "";

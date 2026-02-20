@@ -2,17 +2,17 @@ use std::{ffi::CStr, marker::PhantomData};
 
 use hxcfe_sys::{hxcfe_getFloppyInterfaceModeDesc, hxcfe_getFloppyInterfaceModeName};
 
-use crate::Hxcfe;
+use crate::{Hxcfe, InterfaceIndex};
 
 pub struct FloppyInterface<'hfe> {
     hfe: &'hfe Hxcfe,
-    idx: i32,
+    idx: InterfaceIndex,
     phantom: PhantomData<&'hfe Hxcfe>,
 }
 
 impl<'hfe> FloppyInterface<'hfe> {
-    pub fn new(hfe: &'hfe Hxcfe, idx: i32) -> Option<FloppyInterface<'hfe>> {
-        if unsafe { hxcfe_getFloppyInterfaceModeName(hfe.handler, idx) }.is_null() {
+    pub fn new(hfe: &'hfe Hxcfe, idx: InterfaceIndex) -> Option<FloppyInterface<'hfe>> {
+        if unsafe { hxcfe_getFloppyInterfaceModeName(hfe.handler, idx.get()) }.is_null() {
             None
         } else {
             Some(FloppyInterface {
@@ -24,7 +24,7 @@ impl<'hfe> FloppyInterface<'hfe> {
     }
 
     pub fn name(&self) -> &str {
-        let name = unsafe { hxcfe_getFloppyInterfaceModeName(self.hfe.handler, self.idx) };
+        let name = unsafe { hxcfe_getFloppyInterfaceModeName(self.hfe.handler, self.idx.get()) };
         if name.is_null() {
             return "";
         }
@@ -32,7 +32,7 @@ impl<'hfe> FloppyInterface<'hfe> {
     }
 
     pub fn description(&self) -> &str {
-        let name = unsafe { hxcfe_getFloppyInterfaceModeDesc(self.hfe.handler, self.idx) };
+        let name = unsafe { hxcfe_getFloppyInterfaceModeDesc(self.hfe.handler, self.idx.get()) };
         if name.is_null() {
             return "";
         }

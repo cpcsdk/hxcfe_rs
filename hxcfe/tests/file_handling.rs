@@ -1,4 +1,4 @@
-use hxcfe::{Hxcfe, TrackEncoding};
+use hxcfe::{FileSystemId, Hxcfe, TrackEncoding, HeadId, TrackId, SectorId};
 const DSK_FNAME: &'static str = "tests/ECOLE_BUISSONNIERE_(OVERLANDERS).DSK";
 
 #[test]
@@ -29,7 +29,7 @@ fn load_dsk() {
     let mut mounted = false;
     for (name, fs_id) in &fs_types {
         println!("\nTrying {} (ID {})", name, fs_id);
-        fsmngr.select_fs(*fs_id);
+        fsmngr.select_fs(FileSystemId::from_i32(*fs_id).expect("Invalid filesystem ID"));
         let result = fsmngr.mount(&img);
         println!("  Mount result: {}", result);
         
@@ -109,7 +109,7 @@ fn load_dsk() {
         // Read first 2 directory sectors (CPC DATA format: sector IDs 0xC1, 0xC2)
         // Each sector is 512 bytes, containing 16 directory entries of 32 bytes each
         for sector_id in [0xC1, 0xC2] {
-            if let Some(sconfig) = sector_access.search_sector(0, 0, sector_id, TrackEncoding::IsoIbmMfm) {
+            if let Some(sconfig) = sector_access.search_sector(HeadId::new(0), TrackId::new(0), SectorId::new(sector_id), TrackEncoding::IsoIbmMfm) {
                 println!("Reading Track 0, Side 0, Sector ID {:#X}:", sector_id);
                 println!("  Sector size: {} bytes", sconfig.sector_size());
                 

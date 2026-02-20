@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use clap::Parser;
-use hxcfe::Hxcfe;
+use hxcfe::{DriveId, FileSystemId, Hxcfe, InterfaceIndex, LayoutIndex};
 use std::path::PathBuf;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -167,7 +167,9 @@ fn main() -> Result<()> {
         // USB emulation
         #[cfg(feature = "usb")]
         if let Some(drive) = cli.usb {
-            usb_load(input, drive as i32, &cli)?;
+            let drive_id = DriveId::from_u8(drive)
+                .ok_or_else(|| anyhow::anyhow!("Invalid drive number: {} (must be 0-3)", drive))?;
+            usb_load(input, drive_id, &cli)?;
             return Ok(());
         }
 
@@ -252,8 +254,8 @@ fn print_disk_layout(hxc: &Hxcfe) -> Result<()> {
     
     let nb_layouts = layout_manager.nb_layouts();
     for i in 0..nb_layouts {
-        let name = layout_manager.layout_name(i);
-        let desc = layout_manager.layout_description(i);
+        let name = layout_manager.layout_name(LayoutIndex::new(i));
+        let desc = layout_manager.layout_description(LayoutIndex::new(i));
         println!("{:<20} :  {}", name, desc);
     }
 
@@ -270,7 +272,7 @@ fn print_interface_list(hxc: &Hxcfe) -> Result<()> {
 
     let mut count = 0;
     for idx in 0..256 {  // Reasonable upper bound
-        if let Some(interface) = hxc.floppy_interface(idx) {
+        if let Some(interface) = hxc.floppy_interface(InterfaceIndex::new(idx)) {
             println!(
                 "{:<30}(0x{:02X}) : {}",
                 interface.name(),
@@ -368,8 +370,8 @@ fn get_file(hxc: &Hxcfe, image_path: &PathBuf, filename: &str) -> Result<()> {
     let fs_manager = hxc.file_system_manager()
         .context("Failed to initialize filesystem manager")?;
     
-    // Select filesystem (0 = auto-detect)
-    fs_manager.select_fs(0);
+    // Select filesystem (Atari 720KB = auto-detect)
+    fs_manager.select_fs(FileSystemId::Atari720KbFat12);
     
     let mount_ret = fs_manager.mount(&img);
     if mount_ret < 0 {
@@ -419,8 +421,8 @@ fn put_file(hxc: &Hxcfe, image_path: &PathBuf, file_to_put: &PathBuf) -> Result<
     let fs_manager = hxc.file_system_manager()
         .context("Failed to initialize filesystem manager")?;
     
-    // Select filesystem (0 = auto-detect)
-    fs_manager.select_fs(0);
+    // Select filesystem (Atari 720KB = auto-detect)
+    fs_manager.select_fs(FileSystemId::Atari720KbFat12);
     
     let mount_ret = fs_manager.mount(&img);
     if mount_ret < 0 {
@@ -488,7 +490,7 @@ fn sector_by_sector_copy(
 }
 
 #[cfg(feature = "usb")]
-fn usb_load(input: &PathBuf, drive: i32, cli: &Cli) -> Result<()> {
+fn usb_load(input: &PathBuf, drive: DriveId, cli: &Cli) -> Result<()> {
     use std::io::{self, Write};
     
     println!("Starting USB emulation - {}", input.display());
@@ -509,25 +511,18 @@ fn usb_load(input: &PathBuf, drive: i32, cli: &Cli) -> Result<()> {
         hxc.get_interface_mode_id(ifmode_name)
             .context(format!("Invalid interface mode: {}", ifmode_name))?
     } else {
-        img.interface_mode().ifmode
+        img.interface_mode().ifmode.into()
     };
 
     // Determine double step
     let double_step = if cli.double_step {
-        1
+        true
     } else if cli.single_step {
-        0
+        false
     } else {
         // Auto-detect from image
-        if img.nb_tracks() > 42 {
-            0 // Single step for >42 tracks
-        } else {
-            1 // Double step otherwise
-        }
+        img.nb_tracks() <= 42  // Double step for <=42 tracks
     };
-
-    // Clamp drive to 0-3
-    let drive = drive & 3;
 
     // Set interface mode
     usb.set_interface_mode(interface_mode, double_step, drive)
@@ -539,7 +534,7 @@ fn usb_load(input: &PathBuf, drive: i32, cli: &Cli) -> Result<()> {
 
     println!("Interface mode : {}", img.interface_mode().name());
     println!("Select line : {}", drive);
-    println!("Double Step : {}", if double_step != 0 { "yes" } else { "no" });
+    println!("Double Step : {}", if double_step { "yes" } else { "no" });
     println!("\nFloppy image loaded to USB hardware.");
     println!("Type 'q' and press Enter to quit\n");
 

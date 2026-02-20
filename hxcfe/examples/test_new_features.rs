@@ -1,5 +1,5 @@
 /// Quick verification that new APIs work
-use hxcfe::Hxcfe;
+use hxcfe::{FileSystemId, Hxcfe};
 
 fn main() {
     println!("=== Testing New HxCFE Features ===\n");
@@ -35,7 +35,7 @@ fn main() {
     match hxcfe.load("tests/EXPERTS.HFE") {
         Ok(img) => {
             if let Some(fs) = hxcfe.file_system_manager() {
-                fs.select_fs(15); // FS_720KB_MSDOS_FAT12
+                fs.select_fs(FileSystemId::MsDos720KbFat12);
                 if fs.mount(&img) >= 0 {
                     let free = fs.free_space();
                     let total = fs.total_space();

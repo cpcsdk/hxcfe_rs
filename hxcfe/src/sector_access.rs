@@ -6,7 +6,7 @@ use hxcfe_sys::{
 };
 
 use std::marker::PhantomData;
-use crate::{Img, TrackEncoding};
+use crate::{HeadId, Img, SectorId, TrackEncoding, TrackId};
 
 pub struct SectorAccess<'img> {
     access: *mut HXCFE_SECTORACCESS,
@@ -64,50 +64,50 @@ impl<'img> SectorAccess<'img> {
 
     pub fn get_next_sector(
         &self,
-        head: i32,
-        track: i32,
+        head: HeadId,
+        track: TrackId,
         r#type: TrackEncoding,
     ) -> Option<SectorConfig<'_, '_>> {
-        let sector = unsafe { hxcfe_getNextSector(self.access, track, head, r#type as _) };
+        let sector = unsafe { hxcfe_getNextSector(self.access, track.get(), head.get(), r#type as _) };
         if sector.is_null() {
             None
         } else {
             Some(SectorConfig {
                 access: self,
                 cfg: sector,
-                track,
+                track: track.get(),
             })
         }
     }
 
     pub fn search_sector(
         &self,
-        head: i32,
-        track: i32,
-        id: i32,
+        head: HeadId,
+        track: TrackId,
+        id: SectorId,
         r#type: TrackEncoding,
     ) -> Option<SectorConfig<'_, '_>> {
-        let sector = unsafe { hxcfe_searchSector(self.access, track, head, id, r#type as _) };
+        let sector = unsafe { hxcfe_searchSector(self.access, track.get(), head.get(), id.get(), r#type as _) };
         if sector.is_null() {
             None
         } else {
             Some(SectorConfig {
                 access: self,
                 cfg: sector,
-                track,
+                track: track.get(),
             })
         }
     }
 
     pub fn all_track_sectors(
         &self,
-        head: i32,
-        track: i32,
+        head: HeadId,
+        track: TrackId,
         r#type: TrackEncoding,
     ) -> Option<SectorConfigArray<'_, '_>> {
         let mut nb_sectors_found = 0;
         let sca = unsafe {
-            hxcfe_getAllTrackSectors(self.access, track, head, r#type as _, &mut nb_sectors_found)
+            hxcfe_getAllTrackSectors(self.access, track.get(), head.get(), r#type as _, &mut nb_sectors_found)
         };
 
         if sca.is_null() {
@@ -117,7 +117,7 @@ impl<'img> SectorAccess<'img> {
                 access: self,
                 nb_sectors: nb_sectors_found,
                 sca,
-                track,
+                track: track.get(),
             })
         }
     }
@@ -128,12 +128,12 @@ impl<'img> SectorAccess<'img> {
 }
 
 impl SectorConfig<'_, '_> {
-    pub fn head(&self) -> i32 {
-        unsafe { self.cfg.as_ref().unwrap().head }
+    pub fn head(&self) -> HeadId {
+        HeadId::new(unsafe { self.cfg.as_ref().unwrap().head })
     }
 
-    pub fn sector_id(&self) -> i32 {
-        unsafe { self.cfg.as_ref().unwrap().sector }
+    pub fn sector_id(&self) -> SectorId {
+        SectorId::new(unsafe { self.cfg.as_ref().unwrap().sector })
     }
 
     pub fn sector_size(&self) -> i32 {

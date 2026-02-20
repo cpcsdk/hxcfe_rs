@@ -28,8 +28,8 @@ fn test_filesystem_operations() {
     
     let fs_manager = hxcfe.file_system_manager().expect("Failed to create FS manager");
     
-    // Select FAT12 filesystem (15 = FS_720KB_MSDOS_FAT12)
-    fs_manager.select_fs(15);
+    // Select FAT12 filesystem
+    fs_manager.select_fs(FileSystemId::MsDos720KbFat12);
     
     // Mount the image
     let mount_result = fs_manager.mount(&img);
@@ -116,8 +116,7 @@ fn test_generate_floppy() {
         .expect("Failed to create test file");
     
     // Generate a floppy from the directory
-    // 15 = FS_720KB_MSDOS_FAT12
-    let result = hxcfe.generate_floppy(test_dir, 15);
+    let result = hxcfe.generate_floppy(test_dir, FileSystemId::MsDos720KbFat12);
     
     // Cleanup
     let _ = fs::remove_dir_all(test_dir);

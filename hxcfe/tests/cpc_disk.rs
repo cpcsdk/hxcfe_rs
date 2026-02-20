@@ -1,4 +1,4 @@
-use hxcfe::{Hxcfe, TrackEncoding};
+use hxcfe::{Hxcfe, TrackEncoding, HeadId, TrackId, SectorId};
 
 #[test]
 fn test_cpc_experts_hfe() {
@@ -27,7 +27,7 @@ fn test_cpc_experts_hfe() {
     
     // Read first 2 directory sectors (CPC DATA format: sector IDs 0xC1, 0xC2)
     for sector_id in [0xC1, 0xC2] {
-        if let Some(sconfig) = sector_access.search_sector(0, 0, sector_id, TrackEncoding::IsoIbmMfm) {
+        if let Some(sconfig) = sector_access.search_sector(HeadId::new(0), TrackId::new(0), SectorId::new(sector_id), TrackEncoding::IsoIbmMfm) {
             println!("\nReading Track 0, Side 0, Sector ID {:#X}:", sector_id);
             let data = sconfig.read();
             println!("  Data length: {} bytes", data.len());

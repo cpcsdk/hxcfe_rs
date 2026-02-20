@@ -1,4 +1,4 @@
-use hxcfe::{FileSystemManager, Hxcfe};
+use hxcfe::{FileSystemId, FileSystemManager, Hxcfe};
 const DSK_FNAME: &'static str = "tests/ECOLE_BUISSONNIERE_(OVERLANDERS).DSK";
 
 /// Get filesystem name from the C library constants (best guess)
@@ -81,7 +81,7 @@ fn main() {
     let mut mounted = false;
     
     for fs_id in fs_types {
-        fsmngr.select_fs(fs_id);
+        fsmngr.select_fs(FileSystemId::from_i32(fs_id).expect("Invalid filesystem ID"));
         let result = fsmngr.mount(&img);
         println!("  Trying {:30} (ID {:2}): result = {}", fs_name(fs_id), fs_id, result);
         if result >= 0 {

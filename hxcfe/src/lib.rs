@@ -4,11 +4,16 @@ mod img;
 mod img_loaders;
 mod layouts;
 mod sector_access;
+mod types;
 
 #[cfg(feature = "usb")]
 mod usb;
 
 pub use fs_manager::FileSystemManager;
+pub use types::{
+    DriveId, FileHandle, FileSystemId, HeadId, InterfaceIndex, InterfaceModeId, LayoutIndex,
+    SectorId, TrackId,
+};
 use once_cell::sync::Lazy;
 
 #[cfg(feature = "usb")]
@@ -177,7 +182,7 @@ impl Hxcfe {
         FileSystemManager::new(self)
     }
 
-    pub fn floppy_interface<'hfe>(&'hfe self, idx: i32) -> Option<FloppyInterface<'hfe>> {
+    pub fn floppy_interface<'hfe>(&'hfe self, idx: InterfaceIndex) -> Option<FloppyInterface<'hfe>> {
         FloppyInterface::new(self, idx)
     }
 
@@ -194,11 +199,11 @@ impl Hxcfe {
     /// 
     /// # Example
     /// ```no_run
-    /// # use hxcfe::Hxcfe;
+    /// # use hxcfe::{Hxcfe, FileSystemId};
     /// let hxcfe = Hxcfe::get();
-    /// let img = hxcfe.generate_floppy("./my_files", 15).unwrap(); // FS_720KB_MSDOS_FAT12 = 15
+    /// let img = hxcfe.generate_floppy("./my_files", FileSystemId::new(15)).unwrap(); // FS_720KB_MSDOS_FAT12 = 15
     /// ```
-    pub fn generate_floppy<P: AsRef<Path>>(&self, path: P, fs_id: i32) -> Result<Img, HxcfeError> {
+    pub fn generate_floppy<P: AsRef<Path>>(&self, path: P, fs_id: FileSystemId) -> Result<Img, HxcfeError> {
         use std::ffi::CString;
         
         let path_str = path.as_ref().display().to_string();
@@ -207,7 +212,7 @@ impl Hxcfe {
         
         let mut err_ret: i32 = 0;
         let floppydisk = unsafe {
-            hxcfe_generateFloppy(self.handler, path_ptr, fs_id, &mut err_ret)
+            hxcfe_generateFloppy(self.handler, path_ptr, fs_id.get(), &mut err_ret)
         };
         let _ = unsafe { CString::from_raw(path_ptr) };
         
@@ -228,8 +233,8 @@ impl Hxcfe {
     /// * `name` - Interface mode name (e.g., "IBMPC_DD", "ATARIST_DD")
     /// 
     /// # Returns
-    /// `Some(i32)` with the mode ID if found, `None` if the name is invalid.
-    pub fn get_interface_mode_id(&self, name: &str) -> Option<i32> {
+    /// `Some(InterfaceModeId)` with the mode ID if found, `None` if the name is invalid.
+    pub fn get_interface_mode_id(&self, name: &str) -> Option<InterfaceModeId> {
         use std::ffi::CString;
         
         let name_cstr = CString::new(name).ok()?;
@@ -238,7 +243,7 @@ impl Hxcfe {
         let _ = unsafe { CString::from_raw(name_ptr) };
         
         if mode_id >= 0 {
-            Some(mode_id)
+            Some(InterfaceModeId::new(mode_id))
         } else {
             None
         }
@@ -336,8 +341,8 @@ mod test {
         let manager = hxcfe.layout_manager().unwrap();
         for i in 0..manager.nb_layouts() {
             println!("Loader {i}");
-            println!("\t{:?}", manager.layout_name(i));
-            println!("\t{:?}", manager.layout_description(i));
+            println!("\t{:?}", manager.layout_name(LayoutIndex::new(i)));
+            println!("\t{:?}", manager.layout_description(LayoutIndex::new(i)));
         }
     }
 
@@ -346,7 +351,7 @@ mod test {
         let _locker = TESTS.lock();
         let hxcfe = Hxcfe::get();
         let mut idx = 0;
-        while let Some(interface) = hxcfe.floppy_interface(idx) {
+        while let Some(interface) = hxcfe.floppy_interface(InterfaceIndex::new(idx)) {
             idx += 1;
             println!("{idx} {} {}", interface.name(), interface.description());
         }

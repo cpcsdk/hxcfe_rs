@@ -5,8 +5,8 @@ use std::process::Command;
 use tempfile::TempDir;
 use zip::ZipArchive;
 
-const DISKS_ZIP: &str = "../hxcfe-sys/vendor/HxCFloppyEmulator/tests/data/disks_images.zip";
-const TEXT_ZIP: &str = "../hxcfe-sys/vendor/HxCFloppyEmulator/tests/data/text_files.zip";
+const DISKS_ZIP: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../hxcfe-sys/vendor/HxCFloppyEmulator/tests/data/disks_images.zip");
+const TEXT_ZIP: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../hxcfe-sys/vendor/HxCFloppyEmulator/tests/data/text_files.zip");
 
 /// Extract a zip file to a directory
 fn extract_zip<P: AsRef<Path>>(zip_path: P, dest_dir: P) -> Result<(), Box<dyn std::error::Error>> {
