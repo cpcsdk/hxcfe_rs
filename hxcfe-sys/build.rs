@@ -1,4 +1,3 @@
-use make_cmd::gnu_make;
 use std::env;
 use std::path::PathBuf;
 use walkdir::WalkDir;
@@ -19,7 +18,6 @@ fn main() {
     let target = env::var("TARGET").unwrap();
 
     let include_dir = dunce::canonicalize(base.join("sources")).unwrap();
-    let build_dir = dunce::canonicalize(base.join("build")).unwrap();
     let sources_dir = base.join("sources");
     let libhxcadaptor_sources = base.parent().unwrap().join("libhxcadaptor/sources");
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
@@ -30,8 +28,8 @@ fn main() {
     println!("cargo:rerun-if-changed=src/lib.rs");
     println!("cargo:include={}", include_dir.display());
 
-    // Check if we should compile with cc crate (MSVC/MinGW/WASM) or with GNU make
-    // For Windows (both MSVC and MinGW) and WASM, use cc crate
+    // Build with cc crate for all platforms (unified build system)
+    // Platform-specific handling for Windows, Linux/macOS, and WASM
     if target.contains("wasm") {
         eprintln!("Building libhxcfe and libhxcadaptor for WebAssembly target");
         build_wasm(&base, &sources_dir, &libhxcadaptor_sources, &out_path, &target);
@@ -267,6 +265,7 @@ fn main() {
         build
             .include(&sources_dir)
             .include(&libhxcadaptor_sources)
+            .include(base.parent().unwrap().join("libusbhxcfe/sources")) // For usb_hxcfloppyemulator.h
             .include(base.parent().unwrap().join("build"))
             .include(sources_dir.join("thirdpartylibs/zlib"))
             .include(sources_dir.join("thirdpartylibs/zlib/contrib/minizip"))
@@ -322,21 +321,29 @@ fn build_wasm(
     base: &PathBuf,
     sources_dir: &PathBuf,
     libhxcadaptor_sources: &PathBuf,
-    out_path: &PathBuf,
+    _out_path: &PathBuf,
     target: &str,
 ) {
     // Collect all .c files from sources directory, excluding test files and examples
     let mut c_files = Vec::new();
 
-    // Add libhxcadaptor C files
-    for entry in WalkDir::new(libhxcadaptor_sources)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().is_some_and(|ext| ext == "c"))
-    {
-        c_files.push(entry.path().to_path_buf());
+    // libhxcadaptor requires standard C headers (assert.h, etc.) which are only available
+    // in Emscripten, not in wasm32-unknown-unknown
+    let is_emscripten = target.contains("emscripten");
+    
+    if is_emscripten {
+        // Add libhxcadaptor C files for Emscripten (matches original Makefile)
+        for entry in WalkDir::new(libhxcadaptor_sources)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "c"))
+        {
+            c_files.push(entry.path().to_path_buf());
+        }
+        eprintln!("Found {} C files in libhxcadaptor", c_files.len());
+    } else {
+        eprintln!("Skipping libhxcadaptor for wasm32-unknown-unknown (requires standard C headers not available without Emscripten)");
     }
-    eprintln!("Found {} C files in libhxcadaptor", c_files.len());
 
     // Add libhxcfe C files (same exclusions as Windows build)
     for entry in WalkDir::new(sources_dir)
@@ -376,7 +383,11 @@ fn build_wasm(
     }
 
     let hxcfe_count = c_files.len();
-    eprintln!("Found {} total C files to compile for WASM (libhxcfe + libhxcadaptor)", hxcfe_count);
+    if is_emscripten {
+        eprintln!("Found {} total C files to compile for WASM (libhxcfe + libhxcadaptor)", hxcfe_count);
+    } else {
+        eprintln!("Found {} total C files to compile for WASM (libhxcfe only)", hxcfe_count);
+    }
 
     // Build with cc crate for WASM target
     let mut build = cc::Build::new();
@@ -387,6 +398,7 @@ fn build_wasm(
     build
         .include(sources_dir)
         .include(libhxcadaptor_sources)
+        .include(base.parent().unwrap().join("libusbhxcfe/sources")) // For usb_hxcfloppyemulator.h
         .include(base.parent().unwrap().join("build"))
         .include(sources_dir.join("thirdpartylibs/zlib"))
         .include(sources_dir.join("thirdpartylibs/zlib/contrib/minizip"))
@@ -416,6 +428,10 @@ fn build_wasm(
 
     build.compile("hxcfe");
 
-    eprintln!("Successfully built libhxcfe and libhxcadaptor for WebAssembly");
+    if is_emscripten {
+        eprintln!("Successfully built libhxcfe and libhxcadaptor for WebAssembly (Emscripten)");
+    } else {
+        eprintln!("Successfully built libhxcfe for WebAssembly (wasm32-unknown-unknown, libhxcadaptor skipped)");
+    }
 }
 
