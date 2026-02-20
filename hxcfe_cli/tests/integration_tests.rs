@@ -7,11 +7,11 @@ use zip::ZipArchive;
 
 const DISKS_ZIP: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../hxcfe-sys/vendor/HxCFloppyEmulator/tests/data/disks_images.zip"
+    "/tests/disks_images.zip"
 );
 const TEXT_ZIP: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../hxcfe-sys/vendor/HxCFloppyEmulator/tests/data/text_files.zip"
+    "/tests/text_files.zip"
 );
 
 /// Extract a zip file to a directory
