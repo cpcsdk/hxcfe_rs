@@ -227,7 +227,7 @@ fn main() {
         {
             let path = entry.path();
             let path_str = path.to_string_lossy();
-            // Skip test files, examples, demos, command-line tools, etc.
+            // Skip test files, examples, demos, command-line tools, Windows-specific files, etc.
             if path_str.contains("test") 
                 || path_str.contains("example")
                 || path_str.contains("Demo")
@@ -244,7 +244,10 @@ fn main() {
                 || path_str.contains("miniunz.c")  // Command-line program (has main())
                 || path_str.contains("untgz.c")  // Command-line program (has main())
                 || path_str.contains("bmptoh.c")  // Convert tool with main()
+                || path_str.contains("iowin32.c")  // Windows-specific minizip I/O
                 || path_str.contains("programs")
+                || path_str.contains("/Win32/")  // Skip Windows-specific subdirectories
+                || path_str.contains("\\Win32\\")
             {
                 continue;
             }
@@ -255,6 +258,33 @@ fn main() {
             "Found {} total C files to compile (libhxcfe + libhxcadaptor)",
             c_files.len()
         );
+
+        // Add USB C files if feature is enabled (check via cargo env var)
+        let usb_enabled = env::var("CARGO_FEATURE_USB").is_ok();
+        let hxcfe_count = c_files.len();
+        if usb_enabled {
+            let libusbhxcfe_sources = base.parent().unwrap().join("libusbhxcfe/sources");
+            for entry in WalkDir::new(&libusbhxcfe_sources)
+                .into_iter()
+                .filter_map(|e| e.ok())
+                .filter(|e| e.path().extension().is_some_and(|ext| ext == "c"))
+            {
+                let path = entry.path();
+                let path_str = path.to_string_lossy();
+                // Skip test files, examples, and platform-specific subdirectories (Windows and macOS)
+                if path_str.contains("test")
+                    || path_str.contains("example")
+                    || path_str.contains("/win32/")
+                    || path_str.contains("/macosx/")
+                    || path_str.contains("\\win32\\")
+                    || path_str.contains("\\macosx\\")
+                {
+                    continue;
+                }
+                c_files.push(path.to_path_buf());
+            }
+            eprintln!("Added {} USB C files", c_files.len() - hxcfe_count);
+        }
 
         // Build with cc crate
         let mut build = cc::Build::new();
@@ -274,13 +304,28 @@ fn main() {
             .include(sources_dir.join("thirdpartylibs/expat/lib"))
             .include(sources_dir.join("thirdpartylibs/FATIOlib"))
             .include(sources_dir.join("thirdpartylibs/adflib/Lib"))
-            .include(sources_dir.join("thirdpartylibs/lz4/lib"))
+            .include(sources_dir.join("thirdpartylibs/lz4/lib"));
+
+        // Add USB-specific includes for Linux
+        if usb_enabled {
+            build.include(base.parent().unwrap().join("libusbhxcfe/sources/linux")); // For Linux USB headers
+            eprintln!("USB feature enabled - added linux include path for USB support");
+        }
+
+        build
             .define("XML_STATIC", None)
             .define("XML_GE", "1")
             .define("XML_DTD", "1")
+            .define("XML_DEV_URANDOM", None)  // Use /dev/urandom for entropy on Linux
             .warnings(false);
 
         build.compile("hxcfe");
+
+        // Link USB library if USB feature is enabled
+        if usb_enabled {
+            println!("cargo:rustc-link-lib=dylib=usb-1.0");
+            eprintln!("USB feature enabled - linking libusb-1.0");
+        }
 
         eprintln!("Successfully built libhxcfe and libhxcadaptor with cc crate");
     }
