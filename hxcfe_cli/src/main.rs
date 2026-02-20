@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 use clap::Parser;
-use hxcfe::{FileSystemId, Hxcfe, InterfaceIndex, LayoutIndex};
 #[cfg(feature = "usb")]
 use hxcfe::DriveId;
+use hxcfe::{FileSystemId, Hxcfe, InterfaceIndex, LayoutIndex};
 use std::path::PathBuf;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -93,7 +93,10 @@ struct Cli {
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    println!("HxC Floppy Emulator : Floppy image file converter v{}", VERSION);
+    println!(
+        "HxC Floppy Emulator : Floppy image file converter v{}",
+        VERSION
+    );
     println!("Copyright (C) 2006-2026 Jean-Francois DEL NERO");
     println!("Rust version. Differs slightly from the original C version");
     println!("This program comes with ABSOLUTELY NO WARRANTY");
@@ -177,7 +180,8 @@ fn main() -> Result<()> {
 
         // Conversion
         if let Some(format) = &cli.convert {
-            let img = hxc.load(input)
+            let img = hxc
+                .load(input)
                 .map_err(|e| anyhow::anyhow!("Failed to load image: {}", e))?;
 
             let output = if let Some(out) = &cli.output {
@@ -205,11 +209,11 @@ fn main() -> Result<()> {
     }
 
     // If we reach here and no command was executed, print help
-    if cli.input.is_none() 
-        && !cli.license 
-        && !cli.module_list 
-        && !cli.interface_list 
-        && !cli.raw_list 
+    if cli.input.is_none()
+        && !cli.license
+        && !cli.module_list
+        && !cli.interface_list
+        && !cli.raw_list
         && cli.script.is_none()
     {
         println!("Use --help for usage information");
@@ -224,9 +228,10 @@ fn print_module_list(hxc: &Hxcfe) -> Result<()> {
     println!("---------------------------------------------------------------------------");
     println!("MODULE ID          ACCESS    DESCRIPTION                         Extension\n");
 
-    let manager = hxc.loaders_manager()
+    let manager = hxc
+        .loaders_manager()
         .context("Failed to initialize loader manager")?;
-    
+
     let nb_loaders = manager.nb_loaders();
     for i in 0..nb_loaders {
         if let Some(loader) = manager.loader_for_id(i) {
@@ -251,9 +256,10 @@ fn print_disk_layout(hxc: &Hxcfe) -> Result<()> {
     println!("-                     libhxcfe Raw Disk Layout list                       -");
     println!("---------------------------------------------------------------------------\n");
 
-    let layout_manager = hxc.layout_manager()
+    let layout_manager = hxc
+        .layout_manager()
         .context("Failed to initialize layout manager")?;
-    
+
     let nb_layouts = layout_manager.nb_layouts();
     for i in 0..nb_layouts {
         let name = layout_manager.layout_name(LayoutIndex::new(i));
@@ -273,7 +279,8 @@ fn print_interface_list(hxc: &Hxcfe) -> Result<()> {
     println!("Interface ID                  (code)   DESCRIPTION                         \n");
 
     let mut count = 0;
-    for idx in 0..256 {  // Reasonable upper bound
+    for idx in 0..256 {
+        // Reasonable upper bound
         if let Some(interface) = hxc.floppy_interface(InterfaceIndex::new(idx)) {
             println!(
                 "{:<30}(0x{:02X}) : {}",
@@ -299,7 +306,8 @@ fn print_file_info(hxc: &Hxcfe, input: &PathBuf) -> Result<()> {
     println!("---------------------------------------------------------------------------");
     println!("File: {}", input.display());
 
-    let img = hxc.load(input)
+    let img = hxc
+        .load(input)
         .map_err(|e| anyhow::anyhow!("Failed to load image: {}", e))?;
 
     let interface_mode = img.interface_mode();
@@ -317,16 +325,18 @@ fn print_file_info(hxc: &Hxcfe, input: &PathBuf) -> Result<()> {
 }
 
 fn list_directory(hxc: &Hxcfe, input: &PathBuf) -> Result<()> {
-    let img = hxc.load(input)
+    let img = hxc
+        .load(input)
         .map_err(|e| anyhow::anyhow!("Failed to load image: {}", e))?;
 
     println!("---------------------------------------------------------------------------");
     println!("-                        Directory Listing                                -");
     println!("---------------------------------------------------------------------------");
 
-    let fs_manager = hxc.file_system_manager()
+    let fs_manager = hxc
+        .file_system_manager()
         .context("Failed to initialize filesystem manager")?;
-    
+
     // Try to mount the image
     let mount_ret = fs_manager.mount(&img);
     if mount_ret < 0 {
@@ -347,7 +357,7 @@ fn list_directory(hxc: &Hxcfe, input: &PathBuf) -> Result<()> {
                         println!("{} {:8} {}", type_char, entry.size(), entry.entry_name());
                         count += 1;
                     }
-                    Err(_) => break,  // No more entries
+                    Err(_) => break, // No more entries
                 }
             }
             dir.close();
@@ -364,24 +374,27 @@ fn list_directory(hxc: &Hxcfe, input: &PathBuf) -> Result<()> {
 }
 
 fn get_file(hxc: &Hxcfe, image_path: &PathBuf, filename: &str) -> Result<()> {
-    let img = hxc.load(image_path)
+    let img = hxc
+        .load(image_path)
         .map_err(|e| anyhow::anyhow!("Failed to load image: {}", e))?;
 
     println!("Getting file: {}", filename);
-    
-    let fs_manager = hxc.file_system_manager()
+
+    let fs_manager = hxc
+        .file_system_manager()
         .context("Failed to initialize filesystem manager")?;
-    
+
     // Select filesystem (Atari 720KB = auto-detect)
     fs_manager.select_fs(FileSystemId::Atari720KbFat12);
-    
+
     let mount_ret = fs_manager.mount(&img);
     if mount_ret < 0 {
         return Err(anyhow::anyhow!("Failed to mount image"));
     }
 
     // Open file for reading
-    let file_handle = fs_manager.open_file(filename)
+    let file_handle = fs_manager
+        .open_file(filename)
         .map_err(|e| anyhow::anyhow!("Failed to open file: {}", e))?;
 
     // Read file contents
@@ -401,8 +414,7 @@ fn get_file(hxc: &Hxcfe, image_path: &PathBuf, filename: &str) -> Result<()> {
 
     // Write to local file (strip leading "/" from filename)
     let output_name = filename.strip_prefix("/").unwrap_or(filename);
-    std::fs::write(output_name, &buffer)
-        .context("Failed to write output file")?;
+    std::fs::write(output_name, &buffer).context("Failed to write output file")?;
 
     println!("File extracted successfully ({} bytes)", buffer.len());
 
@@ -410,7 +422,8 @@ fn get_file(hxc: &Hxcfe, image_path: &PathBuf, filename: &str) -> Result<()> {
 }
 
 fn put_file(hxc: &Hxcfe, image_path: &PathBuf, file_to_put: &PathBuf) -> Result<()> {
-    let img = hxc.load(image_path)
+    let img = hxc
+        .load(image_path)
         .map_err(|e| anyhow::anyhow!("Failed to load image: {}", e))?;
 
     let filename = file_to_put
@@ -419,40 +432,44 @@ fn put_file(hxc: &Hxcfe, image_path: &PathBuf, file_to_put: &PathBuf) -> Result<
         .context("Invalid filename")?;
 
     println!("Putting file: {}", file_to_put.display());
-    
-    let fs_manager = hxc.file_system_manager()
+
+    let fs_manager = hxc
+        .file_system_manager()
         .context("Failed to initialize filesystem manager")?;
-    
+
     // Select filesystem (Atari 720KB = auto-detect)
     fs_manager.select_fs(FileSystemId::Atari720KbFat12);
-    
+
     let mount_ret = fs_manager.mount(&img);
     if mount_ret < 0 {
         return Err(anyhow::anyhow!("Failed to mount image"));
     }
 
     // Read local file
-    let contents = std::fs::read(file_to_put)
-        .context("Failed to read input file")?;
+    let contents = std::fs::read(file_to_put).context("Failed to read input file")?;
 
     // Create file on image (prepend "/" for absolute path)
     let fullpath = format!("/{}", filename);
-    let file_handle = fs_manager.create_file(&fullpath)
+    let file_handle = fs_manager
+        .create_file(&fullpath)
         .map_err(|e| anyhow::anyhow!("Failed to create file: {}", e))?;
 
     // Write contents
-    fs_manager.write_file(file_handle, &contents)
+    fs_manager
+        .write_file(file_handle, &contents)
         .map_err(|e| anyhow::anyhow!("Failed to write file: {}", e))?;
 
     fs_manager.close_file(file_handle);
     fs_manager.umount();
 
     // Save the modified image (auto-detect format)
-    let loader_manager = hxc.loaders_manager()
+    let loader_manager = hxc
+        .loaders_manager()
         .context("Failed to get loader manager")?;
-    let loader = loader_manager.loader_for_fname(image_path)
+    let loader = loader_manager
+        .loader_for_fname(image_path)
         .context("Failed to detect image format")?;
-    
+
     img.save(image_path, loader.name())
         .map_err(|e| anyhow::anyhow!("Failed to save image: {}", e))?;
 
@@ -471,19 +488,23 @@ fn sector_by_sector_copy(
     println!("Sector by sector copy mode");
     println!("Reference file: {}", reffile.display());
 
-    let reference = hxc.load(reffile)
+    let reference = hxc
+        .load(reffile)
         .map_err(|e| anyhow::anyhow!("Failed to load reference image: {}", e))?;
 
     // Duplicate the reference image
-    let mut target = reference.duplicate()
+    let mut target = reference
+        .duplicate()
         .map_err(|e| anyhow::anyhow!("Failed to duplicate reference image: {:?}", e))?;
 
     // Copy sectors from source to target
-    target.copy_sectors_from(source)
+    target
+        .copy_sectors_from(source)
         .map_err(|e| anyhow::anyhow!("Failed to perform sector by sector copy: {:?}", e))?;
 
     // Save the target
-    target.save(output, format)
+    target
+        .save(output, format)
         .map_err(|e| anyhow::anyhow!("Failed to save: {}", e))?;
 
     println!("Sector by sector copy completed");
@@ -494,7 +515,7 @@ fn sector_by_sector_copy(
 #[cfg(feature = "usb")]
 fn usb_load(input: &PathBuf, drive: DriveId, cli: &Cli) -> Result<()> {
     use std::io::{self, Write};
-    
+
     println!("Starting USB emulation - {}", input.display());
 
     let hxc = Hxcfe::get();
@@ -505,7 +526,8 @@ fn usb_load(input: &PathBuf, drive: DriveId, cli: &Cli) -> Result<()> {
 
     // Load the floppy image
     // TODO: Add support for raw layout mode with -uselayout option
-    let img = hxc.load(input)
+    let img = hxc
+        .load(input)
         .map_err(|e| anyhow::anyhow!("Failed to load image: {}", e))?;
 
     // Get or determine interface mode
@@ -523,7 +545,7 @@ fn usb_load(input: &PathBuf, drive: DriveId, cli: &Cli) -> Result<()> {
         false
     } else {
         // Auto-detect from image
-        img.nb_tracks() <= 42  // Double step for <=42 tracks
+        img.nb_tracks() <= 42 // Double step for <=42 tracks
     };
 
     // Set interface mode
@@ -545,10 +567,10 @@ fn usb_load(input: &PathBuf, drive: DriveId, cli: &Cli) -> Result<()> {
     loop {
         print!("> ");
         io::stdout().flush()?;
-        
+
         let mut input = String::new();
         stdin.read_line(&mut input)?;
-        
+
         if input.trim().eq_ignore_ascii_case("q") {
             break;
         }

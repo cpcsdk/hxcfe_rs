@@ -5,16 +5,15 @@ use std::{
 };
 
 use hxcfe_sys::{
-    hxcfe_imgAutoSetectLoader, hxcfe_imgDeInitLoader, hxcfe_imgExport, hxcfe_imgGetLoaderAccess,
-    hxcfe_imgGetLoaderDesc, hxcfe_imgGetLoaderExt, hxcfe_imgGetLoaderID, hxcfe_imgGetLoaderName,
-    hxcfe_imgGetNumberOfLoader, hxcfe_imgInitLoader, hxcfe_imgLoad, HXCFE_FLOPPY,
-    HXCFE_IMGLDR,
+    HXCFE_FLOPPY, HXCFE_IMGLDR, hxcfe_imgAutoSetectLoader, hxcfe_imgDeInitLoader, hxcfe_imgExport,
+    hxcfe_imgGetLoaderAccess, hxcfe_imgGetLoaderDesc, hxcfe_imgGetLoaderExt, hxcfe_imgGetLoaderID,
+    hxcfe_imgGetLoaderName, hxcfe_imgGetNumberOfLoader, hxcfe_imgInitLoader, hxcfe_imgLoad,
 };
 
-use crate::{img::Img, Hxcfe, HxcfeError};
+use crate::{Hxcfe, HxcfeError, img::Img};
 
 /// Manager for floppy disk image loaders.
-/// 
+///
 /// Provides access to various image format loaders supported by the HxC library.
 pub struct ImgLoaderManager {
     handler: *mut HXCFE_IMGLDR,
@@ -61,7 +60,7 @@ impl ImgLoaderAccess {
 }
 
 /// A specific image loader for a floppy disk format.
-/// 
+///
 /// Represents a loader that can read and/or write a specific floppy disk image format.
 pub struct ImgLoader<'mngr> {
     manager: &'mngr ImgLoaderManager,
@@ -103,13 +102,13 @@ impl<'mngr> ImgLoader<'mngr> {
     }
 
     /// Load a floppy disk image from a file.
-    /// 
+    ///
     /// # Arguments
     /// * `p` - Path to the image file
-    /// 
+    ///
     /// # Returns
     /// `Ok(Img)` on success, `Err(HxcfeError)` on failure
-    /// 
+    ///
     /// # Errors
     /// - `HXCFE_BADPARAMETER` if the path contains null bytes
     /// - `HXCFE_ACCESSERROR` if the file cannot be accessed
@@ -130,20 +129,20 @@ impl<'mngr> ImgLoader<'mngr> {
         } else {
             Ok(Img {
                 floppydisk,
-                hxcfe: ( &*self.manager ).hxcfe,
+                hxcfe: self.manager.hxcfe,
             })
         }
     }
 
     /// Save a floppy disk image to a file.
-    /// 
+    ///
     /// # Arguments
     /// * `p` - Path where to save the image
     /// * `img` - The image to save
-    /// 
+    ///
     /// # Returns
     /// `Ok(())` on success, `Err(HxcfeError)` on failure
-    /// 
+    ///
     /// # Errors
     /// - `HXCFE_BADPARAMETER` if the path contains null bytes
     /// - `HXCFE_ACCESSERROR` if the file cannot be written
@@ -179,10 +178,7 @@ impl ImgLoaderManager {
         if handler.is_null() {
             None
         } else {
-            Some(Self {
-                handler,
-                hxcfe: hxcfe,
-            })
+            Some(Self { handler, hxcfe })
         }
     }
 
@@ -203,19 +199,19 @@ impl ImgLoaderManager {
     }
 
     /// Find a loader by format name (e.g., "HFE", "DSK").
-    /// 
+    ///
     /// # Returns
     /// `Some(ImgLoader)` if found, `None` if the format is not supported.
     pub fn loader_for_format(&self, format: &str) -> Option<ImgLoader<'_>> {
         let idx = self.get_loader_id_for_format(format)?;
-        Self::loader_for_id(&self, idx)
+        Self::loader_for_id(self, idx)
     }
 
     /// Auto-detect and find the appropriate loader for a file.
-    /// 
+    ///
     /// # Arguments
     /// * `p` - Path to the image file
-    /// 
+    ///
     /// # Returns
     /// `Some(ImgLoader)` if a compatible loader is found, `None` otherwise.
     pub fn loader_for_fname<P: AsRef<Path>>(&self, p: P) -> Option<ImgLoader<'_>> {
@@ -242,10 +238,10 @@ impl ImgLoaderManager {
     }
 
     /// Get a loader by its numeric ID.
-    /// 
+    ///
     /// # Arguments
     /// * `idx` - The loader ID (0 to nb_loaders()-1)
-    /// 
+    ///
     /// # Returns
     /// `Some(ImgLoader)` if the ID is valid, `None` otherwise.
     pub fn loader_for_id<'mngr>(&'mngr self, idx: i32) -> Option<ImgLoader<'mngr>> {

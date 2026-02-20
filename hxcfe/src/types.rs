@@ -1,8 +1,7 @@
 /// Type-safe wrappers for IDs used in the public API.
-/// 
+///
 /// These newtypes prevent accidentally mixing different ID types
 /// and provide better type safety than raw i32 values.
-
 use std::fmt;
 
 /// Track number identifier.
@@ -13,7 +12,7 @@ impl TrackId {
     pub const fn new(id: i32) -> Self {
         Self(id)
     }
-    
+
     pub const fn get(self) -> i32 {
         self.0
     }
@@ -45,7 +44,7 @@ impl HeadId {
     pub const fn new(id: i32) -> Self {
         Self(id)
     }
-    
+
     pub const fn get(self) -> i32 {
         self.0
     }
@@ -77,7 +76,7 @@ impl SectorId {
     pub const fn new(id: i32) -> Self {
         Self(id)
     }
-    
+
     pub const fn get(self) -> i32 {
         self.0
     }
@@ -109,18 +108,14 @@ impl DriveId {
     pub const fn new(id: i32) -> Self {
         Self(id)
     }
-    
+
     pub const fn get(self) -> i32 {
         self.0
     }
-    
+
     /// Create from u8 (validates range 0-3).
     pub const fn from_u8(id: u8) -> Option<Self> {
-        if id <= 3 {
-            Some(Self(id as i32))
-        } else {
-            None
-        }
+        if id <= 3 { Some(Self(id as i32)) } else { None }
     }
 }
 
@@ -150,7 +145,7 @@ impl FileHandle {
     pub(crate) const fn new(handle: i32) -> Self {
         Self(handle)
     }
-    
+
     pub const fn get(self) -> i32 {
         self.0
     }
@@ -182,7 +177,7 @@ impl DirHandle {
     pub(crate) const fn new(handle: i32) -> Self {
         Self(handle)
     }
-    
+
     pub(crate) const fn get(self) -> i32 {
         self.0
     }
@@ -196,7 +191,7 @@ impl InterfaceModeId {
     pub const fn new(id: i32) -> Self {
         Self(id)
     }
-    
+
     pub const fn get(self) -> i32 {
         self.0
     }
@@ -221,26 +216,24 @@ impl fmt::Display for InterfaceModeId {
 }
 
 use hxcfe_sys::{
-    FS_720KB_ATARI_FAT12, FS_902KB_ATARI_FAT12, FS_360KB_ATARI_FAT12, FS_3_42MB_ATARI_FAT12,
-    FS_880KB_AMIGADOS, FS_1760KB_AMIGADOS,
-    FS_5P25_300RPM_160KB_MSDOS_FAT12, FS_5P25_360RPM_160KB_MSDOS_FAT12,
-    FS_5P25_300RPM_180KB_MSDOS_FAT12, FS_5P25_360RPM_180KB_MSDOS_FAT12,
-    FS_5P25_SS_300RPM_320KB_MSDOS_FAT12, FS_5P25_SS_360RPM_320KB_MSDOS_FAT12,
-    FS_5P25_DS_300RPM_320KB_MSDOS_FAT12, FS_5P25_DS_360RPM_320KB_MSDOS_FAT12,
-    FS_5P25_DS_300RPM_360KB_MSDOS_FAT12, FS_5P25_DS_360RPM_360KB_MSDOS_FAT12,
-    FS_3P5_DS_300RPM_640KB_MSDOS_FAT12, FS_720KB_MSDOS_FAT12,
-    FS_5P25_300RPM_1200KB_MSDOS_FAT12, FS_5P25_300RPM_1230KB_MSDOS_FAT12,
-    FS_738KB_MSDOS_FAT12, FS_800KB_MSDOS_FAT12, FS_820KB_MSDOS_FAT12,
-    FS_1_44MB_MSDOS_FAT12, FS_1_476MB_MSDOS_FAT12, FS_1_600MB_MSDOS_FAT12,
-    FS_1_640MB_MSDOS_FAT12, FS_1_68MB_MSDOS_FAT12, FS_1_722MB_MSDOS_FAT12,
-    FS_1_743MB_MSDOS_FAT12, FS_1_764MB_MSDOS_FAT12, FS_1_785MB_MSDOS_FAT12,
-    FS_2_50MB_MSDOS_FAT12, FS_2_88MB_MSDOS_FAT12, FS_3_38MB_MSDOS_FAT12,
-    FS_4_50MB_MSDOS_FAT12, FS_5_35MB_MSDOS_FAT12,
-    FS_5_35MB_B_MSDOS_FAT12, FS_6_78MB_MSDOS_FAT12, FS_16MB_MSDOS_FAT12,
+    FS_1_44MB_MSDOS_FAT12, FS_1_68MB_MSDOS_FAT12, FS_1_476MB_MSDOS_FAT12, FS_1_600MB_MSDOS_FAT12,
+    FS_1_640MB_MSDOS_FAT12, FS_1_722MB_MSDOS_FAT12, FS_1_743MB_MSDOS_FAT12, FS_1_764MB_MSDOS_FAT12,
+    FS_1_785MB_MSDOS_FAT12, FS_2_50MB_MSDOS_FAT12, FS_2_88MB_MSDOS_FAT12, FS_3_38MB_MSDOS_FAT12,
+    FS_3_42MB_ATARI_FAT12, FS_3P5_DS_300RPM_640KB_MSDOS_FAT12, FS_4_50MB_MSDOS_FAT12,
+    FS_5_35MB_B_MSDOS_FAT12, FS_5_35MB_MSDOS_FAT12, FS_5P25_300RPM_160KB_MSDOS_FAT12,
+    FS_5P25_300RPM_180KB_MSDOS_FAT12, FS_5P25_300RPM_1200KB_MSDOS_FAT12,
+    FS_5P25_300RPM_1230KB_MSDOS_FAT12, FS_5P25_360RPM_160KB_MSDOS_FAT12,
+    FS_5P25_360RPM_180KB_MSDOS_FAT12, FS_5P25_DS_300RPM_320KB_MSDOS_FAT12,
+    FS_5P25_DS_300RPM_360KB_MSDOS_FAT12, FS_5P25_DS_360RPM_320KB_MSDOS_FAT12,
+    FS_5P25_DS_360RPM_360KB_MSDOS_FAT12, FS_5P25_SS_300RPM_320KB_MSDOS_FAT12,
+    FS_5P25_SS_360RPM_320KB_MSDOS_FAT12, FS_6_78MB_MSDOS_FAT12, FS_16MB_MSDOS_FAT12,
+    FS_360KB_ATARI_FAT12, FS_720KB_ATARI_FAT12, FS_720KB_MSDOS_FAT12, FS_738KB_MSDOS_FAT12,
+    FS_800KB_MSDOS_FAT12, FS_820KB_MSDOS_FAT12, FS_880KB_AMIGADOS, FS_902KB_ATARI_FAT12,
+    FS_1760KB_AMIGADOS,
 };
 
 /// Filesystem type identifier.
-/// 
+///
 /// Corresponds to the filesystem types supported by libhxcfe.
 /// These determine the format used when creating or mounting disk images.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, enumn::N)]
@@ -251,11 +244,11 @@ pub enum FileSystemId {
     Atari902KbFat12 = FS_902KB_ATARI_FAT12,
     Atari360KbFat12 = FS_360KB_ATARI_FAT12,
     Atari3_42MbFat12 = FS_3_42MB_ATARI_FAT12,
-    
+
     // Amiga formats
     Amiga880KbDos = FS_880KB_AMIGADOS,
     Amiga1760KbDos = FS_1760KB_AMIGADOS,
-    
+
     // MS-DOS 5.25" formats
     MsDos5P25_300Rpm_160KbFat12 = FS_5P25_300RPM_160KB_MSDOS_FAT12,
     MsDos5P25_360Rpm_160KbFat12 = FS_5P25_360RPM_160KB_MSDOS_FAT12,
@@ -269,7 +262,7 @@ pub enum FileSystemId {
     MsDos5P25Ds_360Rpm_360KbFat12 = FS_5P25_DS_360RPM_360KB_MSDOS_FAT12,
     MsDos5P25_300Rpm_1200KbFat12 = FS_5P25_300RPM_1200KB_MSDOS_FAT12,
     MsDos5P25_300Rpm_1230KbFat12 = FS_5P25_300RPM_1230KB_MSDOS_FAT12,
-    
+
     // MS-DOS 3.5" formats
     MsDos3P5Ds_300Rpm_640KbFat12 = FS_3P5_DS_300RPM_640KB_MSDOS_FAT12,
     MsDos720KbFat12 = FS_720KB_MSDOS_FAT12,
@@ -300,12 +293,12 @@ impl FileSystemId {
     pub fn from_i32(id: i32) -> Option<Self> {
         Self::n(id)
     }
-    
+
     /// Get the raw filesystem ID value.
     pub const fn get(self) -> i32 {
         self as i32
     }
-    
+
     /// Get a human-readable description of this filesystem type.
     pub fn description(self) -> &'static str {
         match self {
@@ -373,7 +366,7 @@ impl LayoutIndex {
     pub const fn new(index: i32) -> Self {
         Self(index)
     }
-    
+
     pub const fn get(self) -> i32 {
         self.0
     }
@@ -405,7 +398,7 @@ impl InterfaceIndex {
     pub const fn new(index: i32) -> Self {
         Self(index)
     }
-    
+
     pub const fn get(self) -> i32 {
         self.0
     }

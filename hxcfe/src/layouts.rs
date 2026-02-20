@@ -1,8 +1,8 @@
 use std::{ffi::CStr, marker::PhantomData};
 
 use hxcfe_sys::{
-    hxcfe_deinitXmlFloppy, hxcfe_getXmlLayoutDesc, hxcfe_getXmlLayoutName, hxcfe_initXmlFloppy,
-    hxcfe_numberOfXmlLayout, HXCFE_XMLLDR,
+    HXCFE_XMLLDR, hxcfe_deinitXmlFloppy, hxcfe_getXmlLayoutDesc, hxcfe_getXmlLayoutName,
+    hxcfe_initXmlFloppy, hxcfe_numberOfXmlLayout,
 };
 
 use crate::{Hxcfe, LayoutIndex};

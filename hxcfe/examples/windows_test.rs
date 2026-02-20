@@ -18,15 +18,19 @@ fn main() {
 
     // Test loading a disk image (if the test file exists)
     println!("3. Testing loaders manager...");
-    let loaders_manager = hxcfe.loaders_manager().expect("Failed to get loaders manager");
+    let loaders_manager = hxcfe
+        .loaders_manager()
+        .expect("Failed to get loaders manager");
     let count = loaders_manager.nb_loaders();
     println!("   ✓ Found {} disk image loaders\n", count);
-    
+
     println!("4. Testing layout manager...");
-    let layout_manager = hxcfe.layout_manager().expect("Failed to get layout manager");
+    let layout_manager = hxcfe
+        .layout_manager()
+        .expect("Failed to get layout manager");
     let layout_count = layout_manager.nb_layouts();
     println!("   ✓ Found {} interface layouts\n", layout_count);
-    
+
     println!("SUCCESS: Library is fully functional on Windows MSVC!");
     println!("The library can now be used to:");
     println!("  - Load floppy disk images");

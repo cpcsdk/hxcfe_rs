@@ -2,6 +2,7 @@ use std::ffi::CStr;
 
 use std::path::Path;
 
+use hxcfe_sys::HXCFE_FLOPPY;
 use hxcfe_sys::hxcfe_floppyDuplicate;
 use hxcfe_sys::hxcfe_floppyGetInterfaceMode;
 use hxcfe_sys::hxcfe_floppySectorBySectorCopy;
@@ -13,7 +14,6 @@ use hxcfe_sys::hxcfe_getNumberOfTrack;
 use hxcfe_sys::hxcfe_imgDeInitLoader;
 use hxcfe_sys::hxcfe_imgInitLoader;
 use hxcfe_sys::hxcfe_imgUnload;
-use hxcfe_sys::{HXCFE_FLOPPY};
 
 use crate::sector_access::SectorAccess;
 use crate::{Hxcfe, HxcfeError, InterfaceModeId};
@@ -59,7 +59,10 @@ impl Img {
         let ifmode = unsafe {
             hxcfe_floppyGetInterfaceMode(self.hxcfe.as_ref().unwrap().handler, self.floppydisk)
         };
-        Interface { img: self, ifmode: InterfaceModeId::new(ifmode) }
+        Interface {
+            img: self,
+            ifmode: InterfaceModeId::new(ifmode),
+        }
     }
 
     pub fn sector_access(&self) -> Option<SectorAccess<'_>> {
@@ -67,7 +70,7 @@ impl Img {
     }
 
     /// Get the raw floppy disk pointer for low-level operations.
-    /// 
+    ///
     /// This is primarily used internally for USB operations and other
     /// low-level library functions.
     pub fn floppy(&self) -> *mut HXCFE_FLOPPY {
@@ -76,10 +79,7 @@ impl Img {
 
     // XXX how is it different than nb_tracks_per_head ?
     pub fn nb_tracks(&self) -> i32 {
-        let res = unsafe {
-            hxcfe_getNumberOfTrack(self.hxcfe.as_ref().unwrap().handler, self.floppydisk)
-        };
-        res
+        unsafe { hxcfe_getNumberOfTrack(self.hxcfe.as_ref().unwrap().handler, self.floppydisk) }
     }
 
     pub fn nb_tracks_per_head(&self) -> i32 {
@@ -87,9 +87,7 @@ impl Img {
     }
 
     pub fn nb_sides(&self) -> i32 {
-        let res =
-            unsafe { hxcfe_getNumberOfSide(self.hxcfe.as_ref().unwrap().handler, self.floppydisk) };
-        res
+        unsafe { hxcfe_getNumberOfSide(self.hxcfe.as_ref().unwrap().handler, self.floppydisk) }
     }
 
     pub fn size(&self) -> i32 {
@@ -112,7 +110,7 @@ impl Img {
                 self.hxcfe.as_ref().unwrap().handler,
                 self.floppydisk,
                 &mut nbofsector,
-                &mut nbbadsector
+                &mut nbbadsector,
             )
         };
         FloppySizeInfo {
@@ -123,10 +121,10 @@ impl Img {
     }
 
     /// Create a duplicate copy of this floppy disk image.
-    /// 
+    ///
     /// # Returns
     /// `Ok(Img)` containing the duplicated image on success, `Err(HxcfeError)` on failure.
-    /// 
+    ///
     /// # Example
     /// ```no_run
     /// # use hxcfe::Hxcfe;
@@ -135,13 +133,9 @@ impl Img {
     /// let copy = img.duplicate().unwrap();
     /// ```
     pub fn duplicate(&self) -> Result<Img, HxcfeError> {
-        let new_floppy = unsafe {
-            hxcfe_floppyDuplicate(
-                self.hxcfe.as_ref().unwrap().handler,
-                self.floppydisk
-            )
-        };
-        
+        let new_floppy =
+            unsafe { hxcfe_floppyDuplicate(self.hxcfe.as_ref().unwrap().handler, self.floppydisk) };
+
         if new_floppy.is_null() {
             Err(HxcfeError::HXCFE_INTERNALERROR)
         } else {
@@ -153,12 +147,12 @@ impl Img {
     }
 
     /// Copy sectors from another floppy disk image to this one.
-    /// 
+    ///
     /// Performs a sector-by-sector copy operation.
-    /// 
+    ///
     /// # Arguments
     /// * `src` - Source image to copy from
-    /// 
+    ///
     /// # Returns
     /// `Ok(())` on success, `Err(HxcfeError)` on failure.
     pub fn copy_sectors_from(&mut self, src: &Img) -> Result<(), HxcfeError> {
@@ -167,10 +161,10 @@ impl Img {
                 self.hxcfe.as_ref().unwrap().handler,
                 self.floppydisk,
                 src.floppydisk,
-                0
+                0,
             )
         };
-        
+
         let ret = HxcfeError::n(ret).unwrap_or(HxcfeError::HXCFE_INTERNALERROR);
         if ret == HxcfeError::HXCFE_NOERROR {
             Ok(())
@@ -183,7 +177,10 @@ impl Img {
 impl<'img> Interface<'img> {
     pub fn name(&self) -> &str {
         let res = unsafe {
-            hxcfe_getFloppyInterfaceModeName(self.img.hxcfe.as_ref().unwrap().handler, self.ifmode.get())
+            hxcfe_getFloppyInterfaceModeName(
+                self.img.hxcfe.as_ref().unwrap().handler,
+                self.ifmode.get(),
+            )
         };
         if res.is_null() {
             return "";
@@ -193,7 +190,10 @@ impl<'img> Interface<'img> {
 
     pub fn description(&self) -> &str {
         let res = unsafe {
-            hxcfe_getFloppyInterfaceModeDesc(self.img.hxcfe.as_ref().unwrap().handler, self.ifmode.get())
+            hxcfe_getFloppyInterfaceModeDesc(
+                self.img.hxcfe.as_ref().unwrap().handler,
+                self.ifmode.get(),
+            )
         };
         if res.is_null() {
             return "";

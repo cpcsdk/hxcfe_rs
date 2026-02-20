@@ -58,16 +58,20 @@ fn main() {
         .expect(&format!("Unable to read {}", DSK_FNAME));
 
     let interface = img.interface_mode();
-    println!("Interface mode {} {}", interface.name(), interface.description());
+    println!(
+        "Interface mode {} {}",
+        interface.name(),
+        interface.description()
+    );
     println!("Size: {}", img.size());
     println!("Nb sectors: {}", img.nb_sectors());
     println!("Nb sides: {}", img.nb_sides());
 
     let fsmngr = hxcfe.file_system_manager().unwrap();
-    
+
     println!("\nAttempting to mount filesystem...");
     println!("Note: Many CPC game disks use custom formats without standard filesystems.");
-    
+
     // Try common filesystem types for different platforms
     let fs_types = [
         6,  // CPC FAT12
@@ -77,20 +81,29 @@ fn main() {
         16, // MS-DOS 1.2MB
         17, // MS-DOS 1.44MB
     ];
-    
+
     let mut mounted = false;
-    
+
     for fs_id in fs_types {
         fsmngr.select_fs(FileSystemId::from_i32(fs_id).expect("Invalid filesystem ID"));
         let result = fsmngr.mount(&img);
-        println!("  Trying {:30} (ID {:2}): result = {}", fs_name(fs_id), fs_id, result);
+        println!(
+            "  Trying {:30} (ID {:2}): result = {}",
+            fs_name(fs_id),
+            fs_id,
+            result
+        );
         if result >= 0 {
-            println!("\n✓ Successfully mounted with {} (ID {})", fs_name(fs_id), fs_id);
+            println!(
+                "\n✓ Successfully mounted with {} (ID {})",
+                fs_name(fs_id),
+                fs_id
+            );
             mounted = true;
             break;
         }
     }
-    
+
     if mounted {
         println!("\nDirectory listing:");
         display_dir(&fsmngr, "/", 0);

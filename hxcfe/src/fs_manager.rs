@@ -4,14 +4,13 @@ use std::{
 };
 
 use hxcfe_sys::{
-    hxcfe_closeDir, hxcfe_closeFile, hxcfe_createDir, hxcfe_createFile, hxcfe_deinitFsManager,
-    hxcfe_deleteFile, hxcfe_getFreeFsSpace, hxcfe_getTotalFsSpace, hxcfe_initFsManager,
-    hxcfe_mountImage, hxcfe_openDir, hxcfe_openFile, hxcfe_readDir, hxcfe_readFile,
-    hxcfe_removeDir, hxcfe_selectFS, hxcfe_umountImage, hxcfe_writeFile, HXCFE_FSENTRY,
-    HXCFE_FSMNG,
+    HXCFE_FSENTRY, HXCFE_FSMNG, hxcfe_closeDir, hxcfe_closeFile, hxcfe_createDir, hxcfe_createFile,
+    hxcfe_deinitFsManager, hxcfe_deleteFile, hxcfe_getFreeFsSpace, hxcfe_getTotalFsSpace,
+    hxcfe_initFsManager, hxcfe_mountImage, hxcfe_openDir, hxcfe_openFile, hxcfe_readDir,
+    hxcfe_readFile, hxcfe_removeDir, hxcfe_selectFS, hxcfe_umountImage, hxcfe_writeFile,
 };
 
-use crate::{img::Img, types::DirHandle, FileHandle, FileSystemId, Hxcfe, HxcfeError};
+use crate::{FileHandle, FileSystemId, Hxcfe, HxcfeError, img::Img, types::DirHandle};
 
 /// Helper function to safely execute FFI calls that require C strings.
 /// Converts a Rust string to CString, passes it to the closure, and ensures proper cleanup.
@@ -83,8 +82,8 @@ impl<'hfe> FileSystemManager<'hfe> {
     }
 
     pub fn open_dir(&self, folder: &str) -> Result<DirHandler<'_, '_>, i32> {
-        let dirhandle = with_cstring(folder, |folder: *mut i8| {
-            unsafe { hxcfe_openDir(self.handler, folder) }
+        let dirhandle = with_cstring(folder, |folder: *mut i8| unsafe {
+            hxcfe_openDir(self.handler, folder)
         })?;
 
         if dirhandle > 0 {
@@ -98,8 +97,8 @@ impl<'hfe> FileSystemManager<'hfe> {
     }
 
     pub fn open_file(&self, filename: &str) -> Result<FileHandle, i32> {
-        let filehandle = with_cstring(filename, |filename: *mut i8| {
-            unsafe { hxcfe_openFile(self.handler, filename) }
+        let filehandle = with_cstring(filename, |filename: *mut i8| unsafe {
+            hxcfe_openFile(self.handler, filename)
         })?;
 
         if filehandle > 0 {
@@ -110,8 +109,8 @@ impl<'hfe> FileSystemManager<'hfe> {
     }
 
     pub fn create_file(&self, filename: &str) -> Result<FileHandle, i32> {
-        let filehandle = with_cstring(filename, |filename: *mut i8| {
-            unsafe { hxcfe_createFile(self.handler, filename) }
+        let filehandle = with_cstring(filename, |filename: *mut i8| unsafe {
+            hxcfe_createFile(self.handler, filename)
         })?;
 
         if filehandle > 0 {
@@ -123,26 +122,24 @@ impl<'hfe> FileSystemManager<'hfe> {
 
     pub fn read_file(&self, filehandle: FileHandle, buffer: &mut [u8]) -> Result<i32, i32> {
         let size = buffer.len() as i32;
-        let ret = unsafe { hxcfe_readFile(self.handler, filehandle.get(), buffer.as_mut_ptr(), size) };
+        let ret =
+            unsafe { hxcfe_readFile(self.handler, filehandle.get(), buffer.as_mut_ptr(), size) };
 
-        if ret >= 0 {
-            Ok(ret)
-        } else {
-            Err(ret)
-        }
+        if ret >= 0 { Ok(ret) } else { Err(ret) }
     }
 
     pub fn write_file(&self, filehandle: FileHandle, buffer: &[u8]) -> Result<i32, i32> {
         let size = buffer.len() as i32;
         let ret = unsafe {
-            hxcfe_writeFile(self.handler, filehandle.get(), buffer.as_ptr() as *mut u8, size)
+            hxcfe_writeFile(
+                self.handler,
+                filehandle.get(),
+                buffer.as_ptr() as *mut u8,
+                size,
+            )
         };
 
-        if ret >= 0 {
-            Ok(ret)
-        } else {
-            Err(ret)
-        }
+        if ret >= 0 { Ok(ret) } else { Err(ret) }
     }
 
     pub fn close_file(&self, filehandle: FileHandle) -> i32 {
@@ -150,49 +147,38 @@ impl<'hfe> FileSystemManager<'hfe> {
     }
 
     pub fn delete_file(&self, filename: &str) -> Result<(), i32> {
-        let ret = with_cstring(filename, |filename: *mut i8| {
-            unsafe { hxcfe_deleteFile(self.handler, filename) }
+        let ret = with_cstring(filename, |filename: *mut i8| unsafe {
+            hxcfe_deleteFile(self.handler, filename)
         })?;
 
-        if ret >= 0 {
-            Ok(())
-        } else {
-            Err(ret)
-        }
+        if ret >= 0 { Ok(()) } else { Err(ret) }
     }
 
     pub fn create_dir(&self, dirname: &str) -> Result<(), i32> {
-        let ret = with_cstring(dirname, |dirname: *mut i8| {
-            unsafe { hxcfe_createDir(self.handler, dirname) }
+        let ret = with_cstring(dirname, |dirname: *mut i8| unsafe {
+            hxcfe_createDir(self.handler, dirname)
         })?;
 
-        if ret >= 0 {
-            Ok(())
-        } else {
-            Err(ret)
-        }
+        if ret >= 0 { Ok(()) } else { Err(ret) }
     }
 
     pub fn remove_dir(&self, dirname: &str) -> Result<(), i32> {
-        let ret = with_cstring(dirname, |dirname: *mut i8| {
-            unsafe { hxcfe_removeDir(self.handler, dirname) }
+        let ret = with_cstring(dirname, |dirname: *mut i8| unsafe {
+            hxcfe_removeDir(self.handler, dirname)
         })?;
 
-        if ret >= 0 {
-            Ok(())
-        } else {
-            Err(ret)
-        }
+        if ret >= 0 { Ok(()) } else { Err(ret) }
     }
 }
 
 impl<'hfe, 'manager> DirHandler<'hfe, 'manager> {
     pub fn read(&self) -> Result<DirEntry, i32> {
         let mut entry: HXCFE_FSENTRY = unsafe { std::mem::zeroed() };
-        let ret = unsafe { hxcfe_readDir(self.fs_manager.handler, self.dirhandle.get(), &mut entry) };
+        let ret =
+            unsafe { hxcfe_readDir(self.fs_manager.handler, self.dirhandle.get(), &mut entry) };
 
         if ret > 0 {
-            Ok(DirEntry { entry: entry })
+            Ok(DirEntry { entry })
         } else {
             Err(ret)
         }

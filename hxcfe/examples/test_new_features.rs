@@ -3,9 +3,9 @@ use hxcfe::{FileSystemId, Hxcfe};
 
 fn main() {
     println!("=== Testing New HxCFE Features ===\n");
-    
+
     let hxcfe = Hxcfe::get();
-    
+
     // Test 1: Image duplication
     println!("1. Testing image duplicate...");
     match hxcfe.load("tests/EXPERTS.HFE") {
@@ -14,22 +14,30 @@ fn main() {
             match img.duplicate() {
                 Ok(copy) => {
                     println!("   ✓ Duplicated image successfully");
-                    println!("     Original: {} tracks x {} sides = {} bytes",
-                             img.nb_tracks(), img.nb_sides(), img.size());
-                    println!("     Copy:     {} tracks x {} sides = {} bytes",
-                             copy.nb_tracks(), copy.nb_sides(), copy.size());
+                    println!(
+                        "     Original: {} tracks x {} sides = {} bytes",
+                        img.nb_tracks(),
+                        img.nb_sides(),
+                        img.size()
+                    );
+                    println!(
+                        "     Copy:     {} tracks x {} sides = {} bytes",
+                        copy.nb_tracks(),
+                        copy.nb_sides(),
+                        copy.size()
+                    );
                 }
                 Err(e) => println!("   ✗ Failed to duplicate: {:?}", e),
             }
         }
         Err(e) => println!("   ✗ Failed to load: {}", e),
     }
-    
+
     // Test 2: Interface utilities
     println!("\n2. Testing interface utilities...");
     let encoding_name = hxcfe.get_track_encoding_name(0);
     println!("   ✓ Track encoding 0: {}", encoding_name);
-    
+
     // Test 3: Filesystem space query
     println!("\n3. Testing filesystem operations...");
     match hxcfe.load("tests/EXPERTS.HFE") {
@@ -49,6 +57,6 @@ fn main() {
         }
         Err(e) => println!("   ✗ Failed to load: {}", e),
     }
-    
+
     println!("\n=== All Tests Completed ===");
 }
