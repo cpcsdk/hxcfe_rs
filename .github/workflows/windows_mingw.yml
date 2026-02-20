@@ -1,12 +1,41 @@
-# This is the updated workflow file.
+name: Windows MinGW build
 
-# Preview of existing steps above...
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ "main" ]
+    
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
-  your_job_name:
-    runs-on: windows-latest
-    steps:
-      - name: Add Git to PATH
-        run: echo "C:\Program Files\Git\bin" >> $GITHUB_PATH
+  build-windows-mingw:
 
-# Preview of existing steps below...
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+    - uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: >-
+          mingw-w64-x86_64-toolchain
+          make
+          git
+    - uses: actions/checkout@v3
+    - run: git submodule update --init --recursive
+    - name: Install Rust nightly toolchain (GNU)
+      uses: dtolnay/rust-toolchain@nightly
+      with:
+        targets: x86_64-pc-windows-gnu
+    - name: Configure environment
+      run: |
+        echo "CC=gcc" >> $GITHUB_ENV
+        echo "CXX=g++" >> $GITHUB_ENV
+    - name: Build
+      run: cargo build --target x86_64-pc-windows-gnu --verbose
+    - name: Run tests
+      run: cargo test --target x86_64-pc-windows-gnu --verbose 
