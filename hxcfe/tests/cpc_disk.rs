@@ -118,11 +118,11 @@ fn test_create_amiga_disk() {
     let hxcfe = Hxcfe::get();
     
     // Generate a blank Amiga disk using the correct API
-    // The generate_floppy method expects (path, fs_id) not (tracks, sides, format_name)
+    // The generate_floppy method expects a directory path (or empty string for blank)
     println!("Creating blank Amiga DD disk...");
     
-    let temp_path = "test_blank.adf";
-    match hxcfe.generate_floppy(temp_path, FileSystemId::Amiga880KbDos) {
+    // Pass empty string to create a blank disk
+    match hxcfe.generate_floppy("", FileSystemId::Amiga880KbDos) {
         Ok(img) => {
             let interface = img.interface_mode();
             println!("✓ Created: {} - {}", interface.name(), interface.description());
