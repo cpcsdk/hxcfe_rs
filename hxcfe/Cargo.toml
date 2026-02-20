@@ -16,6 +16,6 @@ usb = ["hxcfe-sys/usb"]
 
 [dependencies]
 hxcfe-sys.workspace = true
-enumn = "0.1.12"
-once_cell = "1.18.0"
-parking_lot = "0.12.1"
+enumn.workspace = true
+once_cell.workspace = true
+parking_lot.workspace = true

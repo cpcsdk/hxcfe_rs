@@ -20,8 +20,8 @@ make-cmd.workspace = true
 dunce.workspace = true
 bindgen.workspace = true
 copy_dir.workspace = true
-cc = "1"
-walkdir = "2"
+cc.workspace = true
+walkdir.workspace = true
 
 [lib]
 name = "hxcfe_sys"
