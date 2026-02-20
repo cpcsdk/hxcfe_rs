@@ -36,6 +36,6 @@ jobs:
         echo "CC=gcc" >> $GITHUB_ENV
         echo "CXX=g++" >> $GITHUB_ENV
     - name: Build
-      run: ~/.cargo build --target x86_64-pc-windows-gnu --verbose
+      run: C:\Users\runneradmin\.cargo\bin\cargo build --target x86_64-pc-windows-gnu --verbose
     - name: Run tests
-      run: ~/.cargo test --target x86_64-pc-windows-gnu --verbose 
+      run: C:\Users\runneradmin\.cargo\bin\cargo test --target x86_64-pc-windows-gnu --verbose 
