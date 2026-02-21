@@ -5,6 +5,8 @@ use hxcfe::DriveId;
 use hxcfe::{DiskLayout, FileSystemId, Hxcfe, ImageFormat, InterfaceMode};
 use std::path::PathBuf;
 
+pub use hxcfe;
+
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Parser)]
