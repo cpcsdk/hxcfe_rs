@@ -5,6 +5,7 @@ members = [
 	"hxcfe"
 , "hxcfe_cli"]
 
+[workspace.package]
 version = "0.2.0"
 edition = "2024"
 links = "hxcfe"
