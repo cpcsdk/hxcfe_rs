@@ -82,7 +82,11 @@ fn process_floppy_image(image_data: &[u8]) -> Result<String, String> {
         info.push_str(&format!("Number of tracks: {}\n", img.nb_tracks()));
         info.push_str(&format!("Number of sides: {}\n", img.nb_sides()));
         info.push_str(&format!("Total size: {} bytes\n", img.size()));
-        info.push_str(&format!("Interface mode: {}\n", img.interface_mode().name()));
+        if let Some(interface) = img.interface_mode() {
+            info.push_str(&format!("Interface mode: {}\n", interface.name()));
+        } else {
+            info.push_str("Interface mode: Unknown\n");
+        }
         
         // Try to access filesystem
         let fs_manager = hxc.file_system_manager()

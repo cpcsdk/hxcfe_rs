@@ -1,4 +1,4 @@
-use crate::{DriveId, Hxcfe, HxcfeError, Img, InterfaceModeId, TrackId};
+use crate::{DriveId, Hxcfe, HxcfeError, Img, InterfaceMode, TrackId};
 use hxcfe_sys::USBHXCFE;
 
 /// USB HxC Floppy Emulator handle.
@@ -94,15 +94,17 @@ impl UsbHxcfe {
     /// `Ok(())` on success, `Err(HxcfeError)` on failure.
     pub fn set_interface_mode(
         &self,
-        interface_mode: InterfaceModeId,
+        interface_mode: InterfaceMode,
         double_step: bool,
         drive: DriveId,
     ) -> Result<(), HxcfeError> {
+        let mode_id = interface_mode.id(**self.hxcfe);
+        
         let ret = unsafe {
             hxcfe_sys::usbhxcfe::libusbhxcfe_setInterfaceMode(
                 **self.hxcfe,
                 self.handler,
-                interface_mode.get(),
+                mode_id,
                 if double_step { 1 } else { 0 },
                 drive.get(),
             )
@@ -118,11 +120,12 @@ impl UsbHxcfe {
     /// Get the current interface mode.
     ///
     /// # Returns
-    /// The interface mode ID.
-    pub fn get_interface_mode(&self) -> InterfaceModeId {
-        InterfaceModeId::new(unsafe {
+    /// The interface mode, or None if invalid.
+    pub fn get_interface_mode(&self) -> Option<InterfaceMode> {
+        let mode_id = unsafe {
             hxcfe_sys::usbhxcfe::libusbhxcfe_getInterfaceMode(**self.hxcfe, self.handler)
-        })
+        };
+        InterfaceMode::from_i32(mode_id)
     }
 
     /// Get the current double-step setting.

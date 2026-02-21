@@ -183,38 +183,6 @@ impl DirHandle {
     }
 }
 
-/// Interface mode identifier.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct InterfaceModeId(i32);
-
-impl InterfaceModeId {
-    pub const fn new(id: i32) -> Self {
-        Self(id)
-    }
-
-    pub const fn get(self) -> i32 {
-        self.0
-    }
-}
-
-impl From<i32> for InterfaceModeId {
-    fn from(id: i32) -> Self {
-        Self(id)
-    }
-}
-
-impl From<InterfaceModeId> for i32 {
-    fn from(id: InterfaceModeId) -> i32 {
-        id.0
-    }
-}
-
-impl fmt::Display for InterfaceModeId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 use hxcfe_sys::{
     FS_1_44MB_MSDOS_FAT12, FS_1_68MB_MSDOS_FAT12, FS_1_476MB_MSDOS_FAT12, FS_1_600MB_MSDOS_FAT12,
     FS_1_640MB_MSDOS_FAT12, FS_1_722MB_MSDOS_FAT12, FS_1_743MB_MSDOS_FAT12, FS_1_764MB_MSDOS_FAT12,

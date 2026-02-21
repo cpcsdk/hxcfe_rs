@@ -306,7 +306,7 @@ fn print_file_info(hxc: &Hxcfe, input: &PathBuf) -> Result<()> {
         .load(input)
         .map_err(|e| anyhow::anyhow!("Failed to load image: {}", e))?;
 
-    let interface_mode = img.interface_mode();
+    let interface_mode = img.interface_mode().expect("Could not determine interface mode");
     println!("Interface mode : {}", interface_mode.name());
 
     let num_tracks = img.nb_tracks();
@@ -534,7 +534,9 @@ fn usb_load(input: &PathBuf, drive: DriveId, cli: &HxcfeCli) -> Result<()> {
         hxc.get_interface_mode_id(ifmode_name)
             .context(format!("Invalid interface mode: {}", ifmode_name))?
     } else {
-        img.interface_mode().ifmode.into()
+        img.interface_mode()
+            .ok_or_else(|| anyhow::anyhow!("Could not determine interface mode"))?
+            .ifmode
     };
 
     // Determine double step
@@ -555,7 +557,11 @@ fn usb_load(input: &PathBuf, drive: DriveId, cli: &HxcfeCli) -> Result<()> {
     usb.load_floppy(&img)
         .map_err(|e| anyhow::anyhow!("Failed to load floppy to USB hardware: {:?}", e))?;
 
-    println!("Interface mode : {}", img.interface_mode().name());
+    if let Some(interface) = img.interface_mode() {
+        println!("Interface mode : {}", interface.name());
+    } else {
+        println!("Interface mode : Unknown");
+    }
     println!("Select line : {}", drive);
     println!("Double Step : {}", if double_step { "yes" } else { "no" });
     println!("\nFloppy image loaded to USB hardware.");

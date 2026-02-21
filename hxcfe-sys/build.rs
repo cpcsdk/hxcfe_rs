@@ -817,13 +817,12 @@ fn generate_interface_mode_enum(base: &PathBuf, out_path: &PathBuf) {
     code.push_str("/// Represents the different interface modes supported by the HxC library.\n");
     code.push_str("/// This enum is automatically generated from floppy_ifmode.c.\n");
     code.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]\n");
-    code.push_str("#[repr(i32)]\n");
     code.push_str("pub enum InterfaceMode {\n");
     
     for mode in &modes {
         let variant_name = id_to_variant_name(&mode.name.replace("_FLOPPYMODE", ""));
         code.push_str(&format!("    /// {} - {}\n", mode.name, mode.description));
-        code.push_str(&format!("    {} = {},\n", variant_name, mode.id));
+        code.push_str(&format!("    {},\n", variant_name));  // No explicit value
     }
     
     code.push_str("}\n\n");
@@ -866,6 +865,39 @@ fn generate_interface_mode_enum(base: &PathBuf, out_path: &PathBuf) {
     
     code.push_str("            _ => None,\n");
     code.push_str("        }\n");
+    code.push_str("    }\n");
+    
+    // from_i32 method
+    code.push_str("\n    /// Create from raw interface mode ID\n");
+    code.push_str("    pub fn from_i32(id: i32) -> Option<Self> {\n");
+    code.push_str("        match id {\n");
+    for mode in &modes {
+        let variant_name = id_to_variant_name(&mode.name.replace("_FLOPPYMODE", ""));
+        code.push_str(&format!("            {} => Some(Self::{}),\n", mode.id, variant_name));
+    }
+    code.push_str("            _ => None,\n");
+    code.push_str("        }\n");
+    code.push_str("    }\n");
+    
+    // id method - queries C library for runtime interface mode ID
+    code.push_str("\n    /// Get the interface mode ID from the C library.\n");
+    code.push_str("    ///\n");
+    code.push_str("    /// The ID is retrieved at runtime by querying the C library with the mode name.\n");
+    code.push_str("    /// Panics if the mode is not found (which indicates a bug in the bindings).\n");
+    code.push_str("    ///\n");
+    code.push_str("    /// # Arguments\n");
+    code.push_str("    /// * `hxcfe_ctx` - The HxC Floppy Emulator context\n");
+    code.push_str("    ///\n");
+    code.push_str("    /// # Returns\n");
+    code.push_str("    /// The interface mode ID\n");
+    code.push_str("    pub fn id(&self, hxcfe_ctx: *mut crate::HXCFE) -> i32 {\n");
+    code.push_str("        assert!(!hxcfe_ctx.is_null(), \"HXCFE context cannot be null\");\n");
+    code.push_str("        let name = self.mode_name();\n");
+    code.push_str("        let c_name = std::ffi::CString::new(name)\n");
+    code.push_str("            .expect(\"Interface mode name contains null byte\");\n");
+    code.push_str("        let id = unsafe { crate::hxcfe_getFloppyInterfaceModeID(hxcfe_ctx, c_name.as_ptr() as *mut i8) };\n");
+    code.push_str("        assert!(id >= 0, \"Interface mode '{}' not found in C library (got ID: {})\", name, id);\n");
+    code.push_str("        id\n");
     code.push_str("    }\n");
     
     // all method
@@ -946,13 +978,12 @@ fn generate_track_encoding_enum(base: &PathBuf, out_path: &PathBuf) {
     code.push_str("/// Represents the different track encoding formats supported by the HxC library.\n");
     code.push_str("/// This enum is automatically generated from floppy_ifmode.c.\n");
     code.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]\n");
-    code.push_str("#[repr(u32)]\n");
     code.push_str("pub enum TrackEncoding {\n");
     
     for encoding in &encodings {
         let variant_name = id_to_variant_name(&encoding.name.replace("_ENCODING", ""));
         code.push_str(&format!("    /// {}\n", encoding.name));
-        code.push_str(&format!("    {} = {},\n", variant_name, encoding.constant_name));
+        code.push_str(&format!("    {},\n", variant_name));  // No explicit value
     }
     
     code.push_str("}\n\n");
@@ -997,6 +1028,19 @@ fn generate_track_encoding_enum(base: &PathBuf, out_path: &PathBuf) {
     }
     
     code.push_str("            _ => None,\n");
+    code.push_str("        }\n");
+    code.push_str("    }\n");
+    
+    // id method - returns the constant value
+    code.push_str("\n    /// Get the track encoding ID (constant value).\n");
+    code.push_str("    ///\n");
+    code.push_str("    /// Returns the underlying constant value for this encoding type.\n");
+    code.push_str("    pub const fn id(&self) -> u32 {\n");
+    code.push_str("        match self {\n");
+    for encoding in &encodings {
+        let variant_name = id_to_variant_name(&encoding.name.replace("_ENCODING", ""));
+        code.push_str(&format!("            Self::{} => {},\n", variant_name, encoding.constant_name));
+    }
     code.push_str("        }\n");
     code.push_str("    }\n");
     
@@ -1092,13 +1136,12 @@ fn generate_disk_layout_enum(base: &PathBuf, out_path: &PathBuf) {
     code.push_str("/// Represents the different predefined disk layouts supported by the HxC library.\n");
     code.push_str("/// This enum is automatically generated from LayoutsIndex.h.\n");
     code.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]\n");
-    code.push_str("#[repr(usize)]\n");
     code.push_str("pub enum DiskLayout {\n");
     
     for layout in &layouts {
         let variant_name = id_to_variant_name(&layout.name);
         code.push_str(&format!("    /// {}\n", layout.name));
-        code.push_str(&format!("    {} = {},\n", variant_name, layout.id));
+        code.push_str(&format!("    {},\n", variant_name));  // No explicit value
     }
     
     code.push_str("}\n\n");
@@ -1145,6 +1188,27 @@ fn generate_disk_layout_enum(base: &PathBuf, out_path: &PathBuf) {
     
     code.push_str("            _ => None,\n");
     code.push_str("        }\n");
+    code.push_str("    }\n");
+    
+    // id method - queries C library for runtime layout ID
+    code.push_str("\n    /// Get the disk layout ID from the C library.\n");
+    code.push_str("    ///\n");
+    code.push_str("    /// The ID is retrieved at runtime by querying the C library with the layout name.\n");
+    code.push_str("    /// Panics if the layout is not found (which indicates a bug in the bindings).\n");
+    code.push_str("    ///\n");
+    code.push_str("    /// # Arguments\n");
+    code.push_str("    /// * `hxcfe_xmlldr` - The HxC XML loader context\n");
+    code.push_str("    ///\n");
+    code.push_str("    /// # Returns\n");
+    code.push_str("    /// The layout ID\n");
+    code.push_str("    pub fn id(&self, hxcfe_xmlldr: *mut crate::HXCFE_XMLLDR) -> i32 {\n");
+    code.push_str("        assert!(!hxcfe_xmlldr.is_null(), \"HXCFE_XMLLDR context cannot be null\");\n");
+    code.push_str("        let name = self.layout_name();\n");
+    code.push_str("        let c_name = std::ffi::CString::new(name)\n");
+    code.push_str("            .expect(\"Layout name contains null byte\");\n");
+    code.push_str("        let id = unsafe { crate::hxcfe_getXmlLayoutID(hxcfe_xmlldr, c_name.as_ptr() as *mut i8) };\n");
+    code.push_str("        assert!(id >= 0, \"Layout '{}' not found in C library (got ID: {})\", name, id);\n");
+    code.push_str("        id\n");
     code.push_str("    }\n");
     
     // all method

@@ -12,7 +12,7 @@ mod usb;
 pub use fs_manager::FileSystemManager;
 use once_cell::sync::Lazy;
 pub use types::{
-    DriveId, FileHandle, FileSystemId, HeadId, InterfaceModeId,
+    DriveId, FileHandle, FileSystemId, HeadId,
     SectorId, TrackId,
 };
 
@@ -211,8 +211,8 @@ impl Hxcfe {
     /// * `name` - Interface mode name (e.g., "IBMPC_DD", "ATARIST_DD")
     ///
     /// # Returns
-    /// `Some(InterfaceModeId)` with the mode ID if found, `None` if the name is invalid.
-    pub fn get_interface_mode_id(&self, name: &str) -> Option<InterfaceModeId> {
+    /// `Some(InterfaceMode)` with the mode if found, `None` if the name is invalid.
+    pub fn get_interface_mode_id(&self, name: &str) -> Option<InterfaceMode> {
         use std::ffi::CString;
 
         let name_cstr = CString::new(name).ok()?;
@@ -220,11 +220,7 @@ impl Hxcfe {
         let mode_id = unsafe { hxcfe_getFloppyInterfaceModeID(self.handler, name_ptr) };
         let _ = unsafe { CString::from_raw(name_ptr) };
 
-        if mode_id >= 0 {
-            Some(InterfaceModeId::new(mode_id))
-        } else {
-            None
-        }
+        InterfaceMode::from_i32(mode_id)
     }
 
     /// Get the track encoding name from its ID.
