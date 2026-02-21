@@ -4,6 +4,9 @@
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
+// Include generated ImageFormat enum
+include!(concat!(env!("OUT_DIR"), "/image_format.rs"));
+
 /// Core HxCFloppyEmulator library functions
 ///
 /// This module contains functions for floppy disk image manipulation,

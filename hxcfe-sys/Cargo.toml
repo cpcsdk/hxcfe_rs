@@ -23,6 +23,7 @@ copy_dir.workspace = true
 cc.workspace = true
 walkdir.workspace = true
 fs-err.workspace = true
+regex = "1"
 
 [lib]
 name = "hxcfe_sys"

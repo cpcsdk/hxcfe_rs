@@ -34,6 +34,7 @@ use hxcfe_sys::{
 pub use img::Img;
 pub use img_loaders::ImgLoaderManager;
 pub use layouts::LayoutManager;
+pub use hxcfe_sys::ImageFormat;
 
 #[repr(i32)]
 #[derive(enumn::N, PartialEq, Debug)]
@@ -281,13 +282,58 @@ impl Hxcfe {
         loader.load(&p).map_err(|e| format!("Load error {:?}", e))
     }
 
+    /// Load a floppy disk image from a memory buffer.
+    ///
+    /// This is useful for WASM environments or when you have image data
+    /// in memory without needing to write it to disk first.
+    ///
+    /// # Arguments
+    /// * `buffer` - Byte slice containing the image data
+    /// * `filename` - Hint for format detection (e.g., "disk.dsk", "image.hfe")
+    ///                The file extension helps auto-detect the format.
+    ///
+    /// # Returns
+    /// `Ok(Img)` on success, `Err(String)` with error description on failure.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use hxcfe::Hxcfe;
+    /// let hxc = Hxcfe::get();
+    /// // In WASM, this buffer would come from JavaScript FileReader API
+    /// let image_data = vec![0u8; 737280]; // 720KB DSK file data
+    /// let img = hxc.load_from_buffer(&image_data, "disk.dsk").unwrap();
+    /// ```
+    pub fn load_from_buffer(&self, buffer: &[u8], filename: &str) -> Result<Img, String> {
+        use std::io::Write;
+        
+        // Create a temporary file - the C library requires a filename for format detection
+        // even when using RAM files. The actual data comes from the buffer.
+        let temp_dir = std::env::temp_dir();
+        let temp_path = temp_dir.join(filename);
+        
+        // Write buffer to temp file
+        let mut file = std::fs::File::create(&temp_path)
+            .map_err(|e| format!("Failed to create temp file: {}", e))?;
+        file.write_all(buffer)
+            .map_err(|e| format!("Failed to write temp file: {}", e))?;
+        drop(file);
+        
+        // Load using regular path-based loading
+        let result = self.load(&temp_path);
+        
+        // Clean up temp file
+        let _ = std::fs::remove_file(&temp_path);
+        
+        result
+    }
+
     // TODO Find a way to remove the format information
-    pub(crate) fn save<P: AsRef<Path>>(&self, p: P, format: &str, img: &Img) -> Result<(), String> {
+    pub(crate) fn save<P: AsRef<Path>>(&self, p: P, format: ImageFormat, img: &Img) -> Result<(), String> {
         let manager = self
             .loaders_manager()
             .ok_or_else(|| "Unable to get the loader manager".to_owned())?;
 
-        let loader = manager.loader_for_format(format).ok_or_else(|| {
+        let loader = manager.loader_for_format(format.loader_name()).ok_or_else(|| {
             format!(
                 "Unable to find a saving loader for {}",
                 p.as_ref().display()
@@ -297,6 +343,42 @@ impl Hxcfe {
         loader
             .save(&p, img)
             .map_err(|e| format!("Save error {:?}", e))
+    }
+
+    /// Save a floppy disk image to a memory buffer.
+    ///
+    /// This is useful for WASM environments or when you need to handle
+    /// the image data in memory without writing to disk.
+    ///
+    /// # Arguments
+    /// * `format` - Output format (e.g., `ImageFormat::HxcHfe`, `ImageFormat::AmigaAdf`)
+    /// * `img` - The image to save
+    ///
+    /// # Returns
+    /// `Ok(Vec<u8>)` containing the image data on success, `Err(String)` on failure.
+    pub(crate) fn save_to_buffer(&self, format: ImageFormat, img: &Img) -> Result<Vec<u8>, String> {
+        use std::io::Read;
+        
+        // Create a temporary file for saving with appropriate extension
+        let temp_dir = std::env::temp_dir();
+        let ext = format.extension();
+        let temp_path = temp_dir.join(format!("hxc_temp_{}.{}", std::process::id(), ext));
+        
+        // Save to temp file
+        self.save(&temp_path, format, img)?;
+        
+        // Read the file back into memory
+        let mut file = std::fs::File::open(&temp_path)
+            .map_err(|e| format!("Failed to open temp file: {}", e))?;
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer)
+            .map_err(|e| format!("Failed to read temp file: {}", e))?;
+        drop(file);
+        
+        // Clean up temp file
+        let _ = std::fs::remove_file(&temp_path);
+        
+        Ok(buffer)
     }
 }
 

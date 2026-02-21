@@ -5,9 +5,10 @@ use std::{
 };
 
 use hxcfe_sys::{
-    HXCFE_FLOPPY, HXCFE_IMGLDR, hxcfe_imgAutoSetectLoader, hxcfe_imgDeInitLoader, hxcfe_imgExport,
-    hxcfe_imgGetLoaderAccess, hxcfe_imgGetLoaderDesc, hxcfe_imgGetLoaderExt, hxcfe_imgGetLoaderID,
-    hxcfe_imgGetLoaderName, hxcfe_imgGetNumberOfLoader, hxcfe_imgInitLoader, hxcfe_imgLoad,
+    HXCFE_FLOPPY, HXCFE_IMGLDR, ImageFormat, hxcfe_imgAutoSetectLoader, hxcfe_imgDeInitLoader,
+    hxcfe_imgExport, hxcfe_imgGetLoaderAccess, hxcfe_imgGetLoaderDesc, hxcfe_imgGetLoaderExt,
+    hxcfe_imgGetLoaderID, hxcfe_imgGetLoaderName, hxcfe_imgGetNumberOfLoader, hxcfe_imgInitLoader,
+    hxcfe_imgLoad,
 };
 
 use crate::{Hxcfe, HxcfeError, img::Img};

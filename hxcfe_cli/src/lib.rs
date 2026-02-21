@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 #[cfg(feature = "usb")]
 use hxcfe::DriveId;
-use hxcfe::{FileSystemId, Hxcfe, InterfaceIndex, LayoutIndex};
+use hxcfe::{FileSystemId, Hxcfe, ImageFormat, InterfaceIndex, LayoutIndex};
 use std::path::PathBuf;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -179,7 +179,10 @@ pub fn run(cli: &HxcfeCli) -> Result<()> {
         }
 
         // Conversion
-        if let Some(format) = &cli.convert {
+        if let Some(format_str) = &cli.convert {
+            let format = ImageFormat::from_str(format_str)
+                .ok_or_else(|| anyhow::anyhow!("Unknown format: {}. Use --listmodules to see available formats", format_str))?;
+            
             let img = hxc
                 .load(input)
                 .map_err(|e| anyhow::anyhow!("Failed to load image: {}", e))?;
@@ -189,7 +192,7 @@ pub fn run(cli: &HxcfeCli) -> Result<()> {
             } else {
                 // Generate output filename from input
                 let mut output_path = input.clone();
-                output_path.set_extension(format.to_lowercase());
+                output_path.set_extension(format.extension());
                 output_path
             };
 
@@ -470,7 +473,10 @@ fn put_file(hxc: &Hxcfe, image_path: &PathBuf, file_to_put: &PathBuf) -> Result<
         .loader_for_fname(image_path)
         .context("Failed to detect image format")?;
 
-    img.save(image_path, loader.name())
+    let format = ImageFormat::from_str(loader.name())
+        .ok_or_else(|| anyhow::anyhow!("Unsupported format for saving: {}", loader.name()))?;
+
+    img.save(image_path, format)
         .map_err(|e| anyhow::anyhow!("Failed to save image: {}", e))?;
 
     println!("File added successfully");
@@ -483,7 +489,7 @@ fn sector_by_sector_copy(
     source: &hxcfe::Img,
     reffile: &PathBuf,
     output: &PathBuf,
-    format: &str,
+    format: ImageFormat,
 ) -> Result<()> {
     println!("Sector by sector copy mode");
     println!("Reference file: {}", reffile.display());

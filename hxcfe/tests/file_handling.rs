@@ -1,5 +1,48 @@
-use hxcfe::{FileSystemId, HeadId, Hxcfe, SectorId, TrackEncoding, TrackId};
+use hxcfe::{FileSystemId, HeadId, Hxcfe, ImageFormat, SectorId, TrackEncoding, TrackId};
 const DSK_FNAME: &'static str = "tests/ECOLE_BUISSONNIERE_(OVERLANDERS).DSK";
+
+#[test]
+fn load_from_buffer_and_save_to_buffer() {
+    use std::io::Read;
+    
+    let hxcfe = Hxcfe::get();
+    
+    // Load original file into memory
+    let mut file = std::fs::File::open(DSK_FNAME)
+        .expect(&format!("Unable to open {}", DSK_FNAME));
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer)
+        .expect("Unable to read file");
+    
+    println!("Loaded {} bytes from {}", buffer.len(), DSK_FNAME);
+    
+    // Load from buffer
+    let img = hxcfe.load_from_buffer(&buffer, "test.dsk")
+        .expect("Unable to load from buffer");
+    
+    println!("Image loaded from buffer successfully");
+    println!("  Tracks: {}", img.nb_tracks());
+    println!("  Sides: {}", img.nb_sides());
+    println!("  Size: {} bytes", img.size());
+    
+    // Save to buffer in HFE format
+    let hfe_buffer = img.save_to_buffer(ImageFormat::HxcHfe)
+        .expect("Unable to save to buffer");
+    
+    println!("Saved to HFE buffer: {} bytes", hfe_buffer.len());
+    
+    // Verify we can load the HFE buffer
+    let img2 = hxcfe.load_from_buffer(&hfe_buffer, "test.hfe")
+        .expect("Unable to load HFE from buffer");
+    
+    println!("HFE image loaded from buffer successfully");
+    println!("  Tracks: {}", img2.nb_tracks());
+    println!("  Sides: {}", img2.nb_sides());
+    
+    // Both images should have the same basic properties
+    assert_eq!(img.nb_tracks(), img2.nb_tracks());
+    assert_eq!(img.nb_sides(), img2.nb_sides());
+}
 
 #[test]
 fn load_dsk() {

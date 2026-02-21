@@ -580,6 +580,7 @@ dependencies = [
  "dunce",
  "fs-err",
  "make-cmd",
+ "regex",
  "walkdir",
 ]
 

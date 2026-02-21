@@ -3,6 +3,7 @@ use std::ffi::CStr;
 use std::path::Path;
 
 use hxcfe_sys::HXCFE_FLOPPY;
+use hxcfe_sys::ImageFormat;
 use hxcfe_sys::hxcfe_floppyDuplicate;
 use hxcfe_sys::hxcfe_floppyGetInterfaceMode;
 use hxcfe_sys::hxcfe_floppySectorBySectorCopy;
@@ -51,8 +52,31 @@ impl Drop for Img {
 }
 
 impl Img {
-    pub fn save<P: AsRef<Path>>(&self, p: P, format: &str) -> Result<(), String> {
+    pub fn save<P: AsRef<Path>>(&self, p: P, format: ImageFormat) -> Result<(), String> {
         unsafe { self.hxcfe.as_ref().unwrap().save(p, format, self) }
+    }
+
+    /// Save the floppy disk image to a memory buffer.
+    ///
+    /// This is useful for WASM environments or when you need to handle
+    /// the image data in memory without writing to disk.
+    ///
+    /// # Arguments
+    /// * `format` - Output format (e.g., `ImageFormat::HxcHfe`, `ImageFormat::AmigaAdf`)
+    ///
+    /// # Returns
+    /// `Ok(Vec<u8>)` containing the image data on success, `Err(String)` on failure.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use hxcfe::{Hxcfe, ImageFormat};
+    /// let hxc = Hxcfe::get();
+    /// let img = hxc.load("disk.dsk").unwrap();
+    /// let hfe_data = img.save_to_buffer(ImageFormat::HxcHfe).unwrap();
+    /// // hfe_data now contains the HFE format data in memory
+    /// ```
+    pub fn save_to_buffer(&self, format: ImageFormat) -> Result<Vec<u8>, String> {
+        unsafe { self.hxcfe.as_ref().unwrap().save_to_buffer(format, self) }
     }
 
     pub fn interface_mode(&self) -> Interface<'_> {

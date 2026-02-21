@@ -1,5 +1,5 @@
 /// Test the new features added: image duplication, filesystem operations, and utilities
-use hxcfe::{FileSystemId, Hxcfe};
+use hxcfe::{FileSystemId, Hxcfe, ImageFormat};
 use fs_err as fs;
 use std::path::Path;
 
@@ -149,7 +149,7 @@ fn test_generate_floppy() {
             );
 
             // Try to save it to verify it's valid
-            img.save("test_generated.hfe", "HXC_HFE")
+            img.save("test_generated.hfe", ImageFormat::HxcHfe)
                 .expect("Failed to save generated image");
             println!("✓ Successfully saved generated floppy");
 
