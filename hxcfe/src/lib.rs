@@ -38,6 +38,7 @@ pub use layouts::LayoutManager;
 // Re-export generated enums from hxcfe-sys
 pub use hxcfe_sys::ImageFormat;
 pub use hxcfe_sys::InterfaceMode;
+pub use hxcfe_sys::TrackEncoding;
 
 #[repr(i32)]
 #[derive(enumn::N, PartialEq, Debug)]
@@ -61,34 +62,6 @@ pub enum HxcfeError {
     HXCFE_INTERNALERROR = -5,
     /// File format is not supported
     HXCFE_UNSUPPORTEDFILE = -6,
-}
-
-#[repr(u32)]
-#[derive(Copy, Clone, enumn::N)]
-#[allow(non_camel_case_types)]
-pub enum TrackEncoding {
-    IsoIbmMfm = ISOIBM_MFM_ENCODING,
-    Amiga_Mfm = AMIGA_MFM_ENCODING,
-    IsoIbmFm = ISOIBM_FM_ENCODING,
-    EmuFm = EMU_FM_ENCODING,
-    TycomFm = TYCOM_FM_ENCODING,
-    MembrainMfm = MEMBRAIN_MFM_ENCODING,
-    AppleiiGrc1 = APPLEII_GCR1_ENCODING,
-    AppleiiGrc2 = APPLEII_GCR2_ENCODING,
-    AppleiiHdddA2Grc1 = APPLEII_HDDD_A2_GCR1_ENCODING,
-    AppleiiHdddA2Grc2 = APPLEII_HDDD_A2_GCR2_ENCODING,
-    ArburgDat = ARBURGDAT_ENCODING,
-    ArburgSys = ARBURGSYS_ENCODING,
-    Aed6200p = AED6200P_MFM_ENCODING,
-    NorthstarHsMfm = NORTHSTAR_HS_MFM_ENCODING,
-    HeatkitHsFm = HEATHKIT_HS_FM_ENCODING,
-    DecRx02M2fm = DEC_RX02_M2FM_ENCODING,
-    ApplemacGrc = APPLEMAC_GCR_ENCODING,
-    QdMo5 = QD_MO5_ENCODING,
-    C64Gcr = C64_GCR_ENCODING,
-    Victor9kGcr = VICTOR9K_GCR_ENCODING,
-    MicralnHsFm = MICRALN_HS_FM_ENCODING,
-    Unknown = UNKNOWN_ENCODING,
 }
 
 static HXCFE_INSTANCE: Lazy<Arc<Hxcfe>> = Lazy::new(|| {

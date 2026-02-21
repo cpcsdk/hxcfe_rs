@@ -159,7 +159,7 @@ impl SectorConfig<'_, '_> {
     pub fn track_encoding(&self) -> TrackEncoding {
         let encoding = unsafe { self.cfg.as_ref().unwrap().trackencoding };
         assert!(encoding >= 0);
-        TrackEncoding::n(encoding as _).unwrap()
+        TrackEncoding::from_u32(encoding as u32).unwrap()
     }
 
     pub fn len(&self) -> i32 {

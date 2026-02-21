@@ -164,7 +164,7 @@ fn load_dsk() {
                 HeadId::new(0),
                 TrackId::new(0),
                 SectorId::new(sector_id),
-                TrackEncoding::IsoIbmMfm,
+                TrackEncoding::IsoibmMfm,
             ) {
                 println!("Reading Track 0, Side 0, Sector ID {:#X}:", sector_id);
                 println!("  Sector size: {} bytes", sconfig.sector_size());

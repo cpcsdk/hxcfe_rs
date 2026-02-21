@@ -35,7 +35,7 @@ fn test_cpc_experts_hfe() {
             HeadId::new(0),
             TrackId::new(0),
             SectorId::new(sector_id),
-            TrackEncoding::IsoIbmMfm,
+            TrackEncoding::IsoibmMfm,
         ) {
             println!("\nReading Track 0, Side 0, Sector ID {:#X}:", sector_id);
             let data = sconfig.read();

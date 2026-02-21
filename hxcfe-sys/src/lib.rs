@@ -10,6 +10,9 @@ include!(concat!(env!("OUT_DIR"), "/image_format.rs"));
 // Include generated InterfaceMode enum
 include!(concat!(env!("OUT_DIR"), "/interface_mode.rs"));
 
+// Include generated TrackEncoding enum
+include!(concat!(env!("OUT_DIR"), "/track_encoding.rs"));
+
 /// Core HxCFloppyEmulator library functions
 ///
 /// This module contains functions for floppy disk image manipulation,
