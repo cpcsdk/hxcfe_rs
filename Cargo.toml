@@ -47,3 +47,4 @@ predicates = "3.0"
 
 hxcfe-sys = { path = "hxcfe-sys" }
 hxcfe = { path = "hxcfe" }
+hxcfe_cli = { path = "hxcfe_cli" }
