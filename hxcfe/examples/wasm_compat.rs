@@ -1,5 +1,5 @@
 // Example demonstrating WASM-compatible code for hxcfe
-// 
+//
 // Note: This example is written to be compatible with WASM compilation,
 // but demonstrates patterns that work on all platforms.
 //
@@ -31,15 +31,15 @@ fn main() {
 fn main() {
     println!("HxC WASM-Compatible Example");
     println!("============================");
-    
+
     // In WASM, you would receive this data from JavaScript's FileReader API
     // For this example, we simulate by reading from a file
     let image_data = load_image_data_from_file("tests/EXPERTS.DSK");
-    
+
     // This pattern works identically in WASM and native:
     // Data is passed as a buffer instead of a file path
     let result = process_floppy_image(&image_data);
-    
+
     match result {
         Ok(info) => {
             println!("\n✅ Image processed successfully!");
@@ -56,7 +56,7 @@ fn main() {
 fn process_floppy_image(image_data: &[u8]) -> Result<String, String> {
     // Initialize the HxC library (singleton pattern works in WASM)
     let hxc = Hxcfe::get();
-    
+
     // In native Rust, we save to a temp file then load
     // In WASM with wasm-bindgen, you would expose a custom load_from_buffer method
     // that wraps the C API's memory-based loading capabilities
@@ -69,14 +69,15 @@ fn process_floppy_image(image_data: &[u8]) -> Result<String, String> {
             .map_err(|e| format!("Failed to create temp file: {}", e))?;
         file.write_all(image_data)
             .map_err(|e| format!("Failed to write temp file: {}", e))?;
-        
+
         // Load the image
-        let img = hxc.load(&temp_path)
+        let img = hxc
+            .load(&temp_path)
             .map_err(|e| format!("Failed to load image: {:?}", e))?;
-        
+
         // Clean up temp file
         let _ = std::fs::remove_file(&temp_path);
-        
+
         // Extract information
         let mut info = String::new();
         info.push_str(&format!("Number of tracks: {}\n", img.nb_tracks()));
@@ -87,17 +88,18 @@ fn process_floppy_image(image_data: &[u8]) -> Result<String, String> {
         } else {
             info.push_str("Interface mode: Unknown\n");
         }
-        
+
         // Try to access filesystem
-        let fs_manager = hxc.file_system_manager()
+        let fs_manager = hxc
+            .file_system_manager()
             .ok_or_else(|| "Failed to init FS manager".to_string())?;
-        
+
         fs_manager.select_fs(FileSystemId::Atari720KbFat12);
-        
+
         let mount_ret = fs_manager.mount(&img);
         if mount_ret >= 0 {
             info.push_str("\n✅ Filesystem mounted successfully\n");
-            
+
             // Try to open root directory
             match fs_manager.open_dir("/") {
                 Ok(dir) => {
@@ -107,8 +109,12 @@ fn process_floppy_image(image_data: &[u8]) -> Result<String, String> {
                         match dir.read() {
                             Ok(entry) => {
                                 let type_char = if entry.is_dir() { "d" } else { "-" };
-                                info.push_str(&format!("  {} {:8} {}\n", 
-                                    type_char, entry.size(), entry.entry_name()));
+                                info.push_str(&format!(
+                                    "  {} {:8} {}\n",
+                                    type_char,
+                                    entry.size(),
+                                    entry.entry_name()
+                                ));
                                 count += 1;
                             }
                             Err(_) => break,
@@ -121,24 +127,30 @@ fn process_floppy_image(image_data: &[u8]) -> Result<String, String> {
                     info.push_str(&format!("⚠️  Failed to open root directory: {}\n", e));
                 }
             }
-            
+
             fs_manager.umount();
         } else {
-            info.push_str(&format!("⚠️  Failed to mount filesystem (code: {})\n", mount_ret));
+            info.push_str(&format!(
+                "⚠️  Failed to mount filesystem (code: {})\n",
+                mount_ret
+            ));
         }
-        
+
         Ok(info)
     }
-    
+
     #[cfg(target_family = "wasm")]
     {
         // In WASM, you would use a custom implementation that:
         // 1. Creates a virtual file in Emscripten's filesystem (MEMFS)
         // 2. Or uses a custom C wrapper that loads directly from memory
         // 3. The JavaScript side would call exported WASM functions
-        
+
         // For now, return a placeholder
-        Ok(format!("WASM mode: {} bytes of image data received\nWASM memory-based loading would process this data...", image_data.len()))
+        Ok(format!(
+            "WASM mode: {} bytes of image data received\nWASM memory-based loading would process this data...",
+            image_data.len()
+        ))
     }
 }
 
@@ -149,8 +161,7 @@ fn load_image_data_from_file(path: &str) -> Vec<u8> {
     match std::fs::File::open(path) {
         Ok(mut file) => {
             let mut buffer = Vec::new();
-            file.read_to_end(&mut buffer)
-                .expect("Failed to read file");
+            file.read_to_end(&mut buffer).expect("Failed to read file");
             buffer
         }
         Err(_) => {
@@ -170,16 +181,16 @@ fn load_image_data_from_file(_path: &str) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_process_empty_buffer() {
         let empty_data = vec![0u8; 737280]; // 720KB
         let result = process_floppy_image(&empty_data);
-        
+
         // Should complete without crashing
         assert!(result.is_ok() || result.is_err()); // Either outcome is acceptable for empty data
     }
-    
+
     #[test]
     fn test_wasm_compat_api() {
         // Verify the API is WASM-compatible (only uses buffers)

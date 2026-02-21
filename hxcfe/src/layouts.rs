@@ -5,7 +5,7 @@ use hxcfe_sys::{
     hxcfe_initXmlFloppy, hxcfe_numberOfXmlLayout,
 };
 
-use crate::{Hxcfe, DiskLayout};
+use crate::{DiskLayout, Hxcfe};
 
 pub struct LayoutManager<'hfe> {
     handler: *mut HXCFE_XMLLDR,

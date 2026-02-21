@@ -99,7 +99,7 @@ impl UsbHxcfe {
         drive: DriveId,
     ) -> Result<(), HxcfeError> {
         let mode_id = interface_mode.id(**self.hxcfe);
-        
+
         let ret = unsafe {
             hxcfe_sys::usbhxcfe::libusbhxcfe_setInterfaceMode(
                 **self.hxcfe,

@@ -84,10 +84,7 @@ impl Img {
             hxcfe_floppyGetInterfaceMode(self.hxcfe.as_ref().unwrap().handler, self.floppydisk)
         };
         let ifmode = InterfaceMode::from_i32(ifmode)?;
-        Some(Interface {
-            img: self,
-            ifmode,
-        })
+        Some(Interface { img: self, ifmode })
     }
 
     pub fn sector_access(&self) -> Option<SectorAccess<'_>> {
@@ -201,13 +198,12 @@ impl Img {
 
 impl<'img> Interface<'img> {
     pub fn name(&self) -> &str {
-        let mode_id = self.ifmode.id(unsafe { self.img.hxcfe.as_ref().unwrap() }.handler);
-        
+        let mode_id = self
+            .ifmode
+            .id(unsafe { self.img.hxcfe.as_ref().unwrap() }.handler);
+
         let res = unsafe {
-            hxcfe_getFloppyInterfaceModeName(
-                self.img.hxcfe.as_ref().unwrap().handler,
-                mode_id,
-            )
+            hxcfe_getFloppyInterfaceModeName(self.img.hxcfe.as_ref().unwrap().handler, mode_id)
         };
         if res.is_null() {
             return "";
@@ -216,13 +212,12 @@ impl<'img> Interface<'img> {
     }
 
     pub fn description(&self) -> &str {
-        let mode_id = self.ifmode.id(unsafe { self.img.hxcfe.as_ref().unwrap() }.handler);
-        
+        let mode_id = self
+            .ifmode
+            .id(unsafe { self.img.hxcfe.as_ref().unwrap() }.handler);
+
         let res = unsafe {
-            hxcfe_getFloppyInterfaceModeDesc(
-                self.img.hxcfe.as_ref().unwrap().handler,
-                mode_id,
-            )
+            hxcfe_getFloppyInterfaceModeDesc(self.img.hxcfe.as_ref().unwrap().handler, mode_id)
         };
         if res.is_null() {
             return "";

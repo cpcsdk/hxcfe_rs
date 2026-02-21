@@ -6,14 +6,8 @@ use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 use zip::ZipArchive;
 
-const DISKS_ZIP: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/tests/disks_images.zip"
-);
-const TEXT_ZIP: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/tests/text_files.zip"
-);
+const DISKS_ZIP: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/disks_images.zip");
+const TEXT_ZIP: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/text_files.zip");
 
 /// Extract a zip file to a directory
 fn extract_zip<P: AsRef<Path>>(zip_path: P, dest_dir: P) -> Result<(), Box<dyn std::error::Error>> {

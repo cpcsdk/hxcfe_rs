@@ -91,14 +91,14 @@ pub struct HxcfeCli {
 }
 
 pub fn run(cli: &HxcfeCli) -> Result<()> {
-
-
     println!(
         "HxC Floppy Emulator : Floppy image file converter v{}",
         VERSION
     );
     println!("Copyright (C) 2006-2026 Jean-Francois DEL NERO");
-    println!("Rust version. Differs slightly from the original C version AND has not been deeply tested. So expect issues, report them, they will be fixed.");
+    println!(
+        "Rust version. Differs slightly from the original C version AND has not been deeply tested. So expect issues, report them, they will be fixed."
+    );
     println!("This program comes with ABSOLUTELY NO WARRANTY");
     println!("This is free software, and you are welcome to redistribute it");
     println!("under certain conditions;\n");
@@ -180,9 +180,13 @@ pub fn run(cli: &HxcfeCli) -> Result<()> {
 
         // Conversion
         if let Some(format_str) = &cli.convert {
-            let format = ImageFormat::from_str(format_str)
-                .ok_or_else(|| anyhow::anyhow!("Unknown format: {}. Use --listmodules to see available formats", format_str))?;
-            
+            let format = ImageFormat::from_str(format_str).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Unknown format: {}. Use --listmodules to see available formats",
+                    format_str
+                )
+            })?;
+
             let img = hxc
                 .load(input)
                 .map_err(|e| anyhow::anyhow!("Failed to load image: {}", e))?;
@@ -306,7 +310,9 @@ fn print_file_info(hxc: &Hxcfe, input: &PathBuf) -> Result<()> {
         .load(input)
         .map_err(|e| anyhow::anyhow!("Failed to load image: {}", e))?;
 
-    let interface_mode = img.interface_mode().expect("Could not determine interface mode");
+    let interface_mode = img
+        .interface_mode()
+        .expect("Could not determine interface mode");
     println!("Interface mode : {}", interface_mode.name());
 
     let num_tracks = img.nb_tracks();

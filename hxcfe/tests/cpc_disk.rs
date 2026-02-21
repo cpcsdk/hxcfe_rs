@@ -11,7 +11,9 @@ fn test_cpc_experts_hfe() {
         .load(HFE_FNAME)
         .expect(&format!("Unable to read {}", HFE_FNAME));
 
-    let interface = img.interface_mode().expect("Could not determine interface mode");
+    let interface = img
+        .interface_mode()
+        .expect("Could not determine interface mode");
     println!(
         "Interface mode: {} - {}",
         interface.name(),
@@ -142,7 +144,9 @@ fn test_create_amiga_disk() {
     // Pass empty string to create a blank disk
     match hxcfe.generate_floppy("", FileSystemId::Amiga880KbDos) {
         Ok(img) => {
-            let interface = img.interface_mode().expect("Could not determine interface mode");
+            let interface = img
+                .interface_mode()
+                .expect("Could not determine interface mode");
             println!(
                 "✓ Created: {} - {}",
                 interface.name(),

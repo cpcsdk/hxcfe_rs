@@ -57,7 +57,9 @@ fn main() {
         .load(DSK_FNAME)
         .expect(&format!("Unable to read {}", DSK_FNAME));
 
-    let interface = img.interface_mode().expect("Could not determine interface mode");
+    let interface = img
+        .interface_mode()
+        .expect("Could not determine interface mode");
     println!(
         "Interface mode {} {}",
         interface.name(),

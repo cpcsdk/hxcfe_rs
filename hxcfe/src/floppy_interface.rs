@@ -8,7 +8,7 @@ pub struct FloppyInterface<'hfe> {
 }
 
 impl<'hfe> FloppyInterface<'hfe> {
-    pub fn new(hfe: &'hfe Hxcfe, mode: InterfaceMode) -> Option<FloppyInterface<'hfe>> {
+    pub fn new(_hfe: &'hfe Hxcfe, mode: InterfaceMode) -> Option<FloppyInterface<'hfe>> {
         // InterfaceMode is already validated at compile time, so always return Some
         Some(FloppyInterface {
             mode,
@@ -23,9 +23,7 @@ impl<'hfe> FloppyInterface<'hfe> {
     pub fn name(&self) -> &str {
         self.mode.mode_name()
     }
-
 }
-
 
 impl Deref for FloppyInterface<'_> {
     type Target = InterfaceMode;

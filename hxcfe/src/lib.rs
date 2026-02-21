@@ -11,10 +11,7 @@ mod usb;
 
 pub use fs_manager::FileSystemManager;
 use once_cell::sync::Lazy;
-pub use types::{
-    DriveId, FileHandle, FileSystemId, HeadId,
-    SectorId, TrackId,
-};
+pub use types::{DriveId, FileHandle, FileSystemId, HeadId, SectorId, TrackId};
 
 #[cfg(feature = "usb")]
 pub use usb::UsbHxcfe;
@@ -23,23 +20,18 @@ use std::{ffi::CStr, ops::Deref, path::Path, sync::Arc};
 
 use floppy_interface::FloppyInterface;
 use hxcfe_sys::{
-    AED6200P_MFM_ENCODING, AMIGA_MFM_ENCODING, APPLEII_GCR1_ENCODING, APPLEII_GCR2_ENCODING,
-    APPLEII_HDDD_A2_GCR1_ENCODING, APPLEII_HDDD_A2_GCR2_ENCODING, APPLEMAC_GCR_ENCODING,
-    ARBURGDAT_ENCODING, ARBURGSYS_ENCODING, C64_GCR_ENCODING, DEC_RX02_M2FM_ENCODING,
-    EMU_FM_ENCODING, HEATHKIT_HS_FM_ENCODING, HXCFE, ISOIBM_FM_ENCODING, ISOIBM_MFM_ENCODING,
-    MEMBRAIN_MFM_ENCODING, MICRALN_HS_FM_ENCODING, NORTHSTAR_HS_MFM_ENCODING, QD_MO5_ENCODING,
-    TYCOM_FM_ENCODING, UNKNOWN_ENCODING, VICTOR9K_GCR_ENCODING, hxcfe_generateFloppy,
-    hxcfe_getFloppyInterfaceModeID, hxcfe_getTrackEncodingName, hxcfe_getVersion,
+    HXCFE, hxcfe_generateFloppy, hxcfe_getFloppyInterfaceModeID, hxcfe_getTrackEncodingName,
+    hxcfe_getVersion,
 };
 pub use img::Img;
 pub use img_loaders::ImgLoaderManager;
 pub use layouts::LayoutManager;
 
 // Re-export generated enums from hxcfe-sys
+pub use hxcfe_sys::DiskLayout;
 pub use hxcfe_sys::ImageFormat;
 pub use hxcfe_sys::InterfaceMode;
 pub use hxcfe_sys::TrackEncoding;
-pub use hxcfe_sys::DiskLayout;
 
 #[repr(i32)]
 #[derive(enumn::N, PartialEq, Debug)]
@@ -278,40 +270,47 @@ impl Hxcfe {
     /// ```
     pub fn load_from_buffer(&self, buffer: &[u8], filename: &str) -> Result<Img, String> {
         use std::io::Write;
-        
+
         // Create a temporary file - the C library requires a filename for format detection
         // even when using RAM files. The actual data comes from the buffer.
         let temp_dir = std::env::temp_dir();
         let temp_path = temp_dir.join(filename);
-        
+
         // Write buffer to temp file
         let mut file = std::fs::File::create(&temp_path)
             .map_err(|e| format!("Failed to create temp file: {}", e))?;
         file.write_all(buffer)
             .map_err(|e| format!("Failed to write temp file: {}", e))?;
         drop(file);
-        
+
         // Load using regular path-based loading
         let result = self.load(&temp_path);
-        
+
         // Clean up temp file
         let _ = std::fs::remove_file(&temp_path);
-        
+
         result
     }
 
     // TODO Find a way to remove the format information
-    pub(crate) fn save<P: AsRef<Path>>(&self, p: P, format: ImageFormat, img: &Img) -> Result<(), String> {
+    pub(crate) fn save<P: AsRef<Path>>(
+        &self,
+        p: P,
+        format: ImageFormat,
+        img: &Img,
+    ) -> Result<(), String> {
         let manager = self
             .loaders_manager()
             .ok_or_else(|| "Unable to get the loader manager".to_owned())?;
 
-        let loader = manager.loader_for_format(format.loader_name()).ok_or_else(|| {
-            format!(
-                "Unable to find a saving loader for {}",
-                p.as_ref().display()
-            )
-        })?;
+        let loader = manager
+            .loader_for_format(format.loader_name())
+            .ok_or_else(|| {
+                format!(
+                    "Unable to find a saving loader for {}",
+                    p.as_ref().display()
+                )
+            })?;
 
         loader
             .save(&p, img)
@@ -331,15 +330,15 @@ impl Hxcfe {
     /// `Ok(Vec<u8>)` containing the image data on success, `Err(String)` on failure.
     pub(crate) fn save_to_buffer(&self, format: ImageFormat, img: &Img) -> Result<Vec<u8>, String> {
         use std::io::Read;
-        
+
         // Create a temporary file for saving with appropriate extension
         let temp_dir = std::env::temp_dir();
         let ext = format.extension();
         let temp_path = temp_dir.join(format!("hxc_temp_{}.{}", std::process::id(), ext));
-        
+
         // Save to temp file
         self.save(&temp_path, format, img)?;
-        
+
         // Read the file back into memory
         let mut file = std::fs::File::open(&temp_path)
             .map_err(|e| format!("Failed to open temp file: {}", e))?;
@@ -347,10 +346,10 @@ impl Hxcfe {
         file.read_to_end(&mut buffer)
             .map_err(|e| format!("Failed to read temp file: {}", e))?;
         drop(file);
-        
+
         // Clean up temp file
         let _ = std::fs::remove_file(&temp_path);
-        
+
         Ok(buffer)
     }
 }
@@ -361,7 +360,7 @@ mod test {
 
     use once_cell::sync::Lazy;
 
-    use crate::{Hxcfe, InterfaceMode, DiskLayout, ImageFormat};
+    use crate::{DiskLayout, Hxcfe, ImageFormat, InterfaceMode};
 
     static TESTS: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
@@ -405,7 +404,12 @@ mod test {
         let hxcfe = Hxcfe::get();
         for mode in InterfaceMode::all() {
             if let Some(interface) = hxcfe.floppy_interface(*mode) {
-                println!("{} {} {}", *mode as i32, interface.name(), interface.description());
+                println!(
+                    "{} {} {}",
+                    *mode as i32,
+                    interface.name(),
+                    interface.description()
+                );
             }
         }
     }
@@ -416,28 +420,37 @@ mod test {
     fn validate_interface_modes_against_c_library() {
         let _locker = TESTS.lock();
         let hxcfe = Hxcfe::get();
-        
+
         // Get all modes from our enum
         let rust_modes = InterfaceMode::all();
-        
+
         // Verify each enum variant can be accessed through the C interface
         for mode in rust_modes {
-            let interface = hxcfe.floppy_interface(*mode)
+            let interface = hxcfe
+                .floppy_interface(*mode)
                 .expect(&format!("Failed to create interface for mode {:?}", mode));
-            
+
             // The C library should return a valid name for this mode
             let c_name = interface.name();
-            assert!(!c_name.is_empty(), 
-                "C library returned empty name for mode {:?}", mode);
-            
+            assert!(
+                !c_name.is_empty(),
+                "C library returned empty name for mode {:?}",
+                mode
+            );
+
             // Verify the enum's name matches the C library's name
             let enum_name = mode.mode_name();
-            assert_eq!(c_name, enum_name,
+            assert_eq!(
+                c_name, enum_name,
                 "Mismatch for mode {:?}: C library returns '{}' but enum has '{}'",
-                mode, c_name, enum_name);
+                mode, c_name, enum_name
+            );
         }
-        
-        println!("✓ All {} InterfaceMode variants validated against C library", rust_modes.len());
+
+        println!(
+            "✓ All {} InterfaceMode variants validated against C library",
+            rust_modes.len()
+        );
     }
 
     /// Validates that DiskLayout::all() matches the C library's layout browsing.
@@ -446,39 +459,50 @@ mod test {
     fn validate_disk_layouts_against_c_library() {
         let _locker = TESTS.lock();
         let hxcfe = Hxcfe::get();
-        let manager = hxcfe.layout_manager()
+        let manager = hxcfe
+            .layout_manager()
             .expect("Failed to create layout manager");
-        
+
         // Get counts from both sources
         let rust_layouts = DiskLayout::all();
         let c_count = manager.nb_layouts();
-        
+
         // Verify counts match
-        assert_eq!(rust_layouts.len(), c_count as usize,
+        assert_eq!(
+            rust_layouts.len(),
+            c_count as usize,
             "Count mismatch: Rust enum has {} layouts but C library reports {}",
-            rust_layouts.len(), c_count);
-        
+            rust_layouts.len(),
+            c_count
+        );
+
         // Validate that all layout names match exactly
         let mut mismatches = Vec::new();
         for layout in rust_layouts {
             let c_name = manager.layout_name(*layout);
             let enum_name = layout.layout_name();
-            
+
             if c_name != enum_name {
                 mismatches.push((*layout as usize, c_name.to_string(), enum_name.to_string()));
             }
         }
-        
+
         // Fail if any names don't match
         if !mismatches.is_empty() {
             println!("\n❌ DiskLayout name mismatches found:\n");
             for (id, c_name, enum_name) in &mismatches {
                 println!("  ID {}: C='{}' ≠ Enum='{}'", id, c_name, enum_name);
             }
-            panic!("\n{} layout names don't match between Rust enum and C library. Names must be identical.", mismatches.len());
+            panic!(
+                "\n{} layout names don't match between Rust enum and C library. Names must be identical.",
+                mismatches.len()
+            );
         }
-        
-        println!("✓ All {} DiskLayout names match the C library", rust_layouts.len());
+
+        println!(
+            "✓ All {} DiskLayout names match the C library",
+            rust_layouts.len()
+        );
     }
 
     /// Validates that ImageFormat::all() matches the C library's loader browsing.
@@ -487,17 +511,18 @@ mod test {
     fn validate_image_formats_against_c_library() {
         let _locker = TESTS.lock();
         let hxcfe = Hxcfe::get();
-        let manager = hxcfe.loaders_manager()
+        let manager = hxcfe
+            .loaders_manager()
             .expect("Failed to create loaders manager");
-        
+
         // Get all formats from enum
         let rust_formats = ImageFormat::all();
         let c_count = manager.nb_loaders();
-        
+
         println!("\n=== ImageFormat Validation ===");
         println!("Rust enum has {} formats", rust_formats.len());
         println!("C library reports {} loaders", c_count);
-        
+
         // Sample C library loaders to understand the difference
         println!("\n=== Sample C library loaders (first 10 and last 10) ===");
         for i in 0..10.min(c_count) {
@@ -513,21 +538,24 @@ mod test {
                 }
             }
         }
-        
+
         // Check count - we should have at least as many as we can parse from source
         // C library count may differ if it registers loaders differently
         if rust_formats.len() != c_count as usize {
-            println!("\n⚠️  Count difference: Rust enum has {} formats, C library reports {} loaders.", 
-                rust_formats.len(), c_count);
+            println!(
+                "\n⚠️  Count difference: Rust enum has {} formats, C library reports {} loaders.",
+                rust_formats.len(),
+                c_count
+            );
         }
-        
+
         // Verify each enum format can get its ID from C library
         // This proves the loader exists and is registered
         println!("\n=== Validating ImageFormat IDs from C library ===");
-        
+
         let mut id_success = 0;
         let mut id_failures = Vec::new();
-        
+
         for (idx, format) in rust_formats.iter().enumerate() {
             let loader_name = format.loader_name();
             if let Some(loader_id) = format.id(manager.handler()) {
@@ -539,12 +567,18 @@ mod test {
                 id_failures.push((idx, loader_name.to_string()));
             }
         }
-        
-        println!("✓ {} out of {} ImageFormat variants have valid IDs from C library", 
-            id_success, rust_formats.len());
-        
+
+        println!(
+            "✓ {} out of {} ImageFormat variants have valid IDs from C library",
+            id_success,
+            rust_formats.len()
+        );
+
         if !id_failures.is_empty() {
-            println!("\n⚠️  {} variants could not retrieve ID from C library:", id_failures.len());
+            println!(
+                "\n⚠️  {} variants could not retrieve ID from C library:",
+                id_failures.len()
+            );
             for (idx, name) in id_failures.iter().take(10) {
                 println!("  #{}: {}", idx, name);
             }
@@ -552,7 +586,7 @@ mod test {
                 println!("  ... and {} more", id_failures.len() - 10);
             }
         }
-        
+
         println!("\n✓ All {} ImageFormat IDs validated", rust_formats.len());
     }
 
