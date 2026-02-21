@@ -374,35 +374,3 @@ impl fmt::Display for FileSystemId {
         write!(f, "{}", self.description())
     }
 }
-
-/// Layout index for selecting disk layouts.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct LayoutIndex(i32);
-
-impl LayoutIndex {
-    pub const fn new(index: i32) -> Self {
-        Self(index)
-    }
-
-    pub const fn get(self) -> i32 {
-        self.0
-    }
-}
-
-impl From<i32> for LayoutIndex {
-    fn from(index: i32) -> Self {
-        Self(index)
-    }
-}
-
-impl From<LayoutIndex> for i32 {
-    fn from(index: LayoutIndex) -> i32 {
-        index.0
-    }
-}
-
-impl fmt::Display for LayoutIndex {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}

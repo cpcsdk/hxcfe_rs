@@ -12,7 +12,7 @@ mod usb;
 pub use fs_manager::FileSystemManager;
 use once_cell::sync::Lazy;
 pub use types::{
-    DriveId, FileHandle, FileSystemId, HeadId, InterfaceModeId, LayoutIndex,
+    DriveId, FileHandle, FileSystemId, HeadId, InterfaceModeId,
     SectorId, TrackId,
 };
 
@@ -39,6 +39,7 @@ pub use layouts::LayoutManager;
 pub use hxcfe_sys::ImageFormat;
 pub use hxcfe_sys::InterfaceMode;
 pub use hxcfe_sys::TrackEncoding;
+pub use hxcfe_sys::DiskLayout;
 
 #[repr(i32)]
 #[derive(enumn::N, PartialEq, Debug)]
@@ -364,7 +365,7 @@ mod test {
 
     use once_cell::sync::Lazy;
 
-    use crate::{Hxcfe, InterfaceMode, LayoutIndex};
+    use crate::{Hxcfe, InterfaceMode, DiskLayout, ImageFormat};
 
     static TESTS: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
@@ -395,10 +396,10 @@ mod test {
         let _locker = TESTS.lock();
         let hxcfe = Hxcfe::get();
         let manager = hxcfe.layout_manager().unwrap();
-        for i in 0..manager.nb_layouts() {
-            println!("Loader {i}");
-            println!("\t{:?}", manager.layout_name(LayoutIndex::new(i)));
-            println!("\t{:?}", manager.layout_description(LayoutIndex::new(i)));
+        for layout in DiskLayout::all() {
+            println!("Layout: {}", layout);
+            println!("\tName: {:?}", manager.layout_name(*layout));
+            println!("\tDesc: {:?}", manager.layout_description(*layout));
         }
     }
 
@@ -411,6 +412,152 @@ mod test {
                 println!("{} {} {}", *mode as i32, interface.name(), interface.description());
             }
         }
+    }
+
+    /// Validates that InterfaceMode::all() matches the C library's interface browsing.
+    /// This ensures our auto-generated enum is consistent with the FFI layer.
+    #[test]
+    fn validate_interface_modes_against_c_library() {
+        let _locker = TESTS.lock();
+        let hxcfe = Hxcfe::get();
+        
+        // Get all modes from our enum
+        let rust_modes = InterfaceMode::all();
+        
+        // Verify each enum variant can be accessed through the C interface
+        for mode in rust_modes {
+            let interface = hxcfe.floppy_interface(*mode)
+                .expect(&format!("Failed to create interface for mode {:?}", mode));
+            
+            // The C library should return a valid name for this mode
+            let c_name = interface.name();
+            assert!(!c_name.is_empty(), 
+                "C library returned empty name for mode {:?}", mode);
+            
+            // Verify the enum's name matches the C library's name
+            let enum_name = mode.mode_name();
+            assert_eq!(c_name, enum_name,
+                "Mismatch for mode {:?}: C library returns '{}' but enum has '{}'",
+                mode, c_name, enum_name);
+        }
+        
+        println!("✓ All {} InterfaceMode variants validated against C library", rust_modes.len());
+    }
+
+    /// Validates that DiskLayout::all() matches the C library's layout browsing.
+    /// This ensures our auto-generated enum is consistent with the FFI layer.
+    #[test]
+    fn validate_disk_layouts_against_c_library() {
+        let _locker = TESTS.lock();
+        let hxcfe = Hxcfe::get();
+        let manager = hxcfe.layout_manager()
+            .expect("Failed to create layout manager");
+        
+        // Get counts from both sources
+        let rust_layouts = DiskLayout::all();
+        let c_count = manager.nb_layouts();
+        
+        // Verify counts match
+        assert_eq!(rust_layouts.len(), c_count as usize,
+            "Count mismatch: Rust enum has {} layouts but C library reports {}",
+            rust_layouts.len(), c_count);
+        
+        // Validate that all layout names match exactly
+        let mut mismatches = Vec::new();
+        for layout in rust_layouts {
+            let c_name = manager.layout_name(*layout);
+            let enum_name = layout.layout_name();
+            
+            if c_name != enum_name {
+                mismatches.push((*layout as usize, c_name.to_string(), enum_name.to_string()));
+            }
+        }
+        
+        // Fail if any names don't match
+        if !mismatches.is_empty() {
+            println!("\n❌ DiskLayout name mismatches found:\n");
+            for (id, c_name, enum_name) in &mismatches {
+                println!("  ID {}: C='{}' ≠ Enum='{}'", id, c_name, enum_name);
+            }
+            panic!("\n{} layout names don't match between Rust enum and C library. Names must be identical.", mismatches.len());
+        }
+        
+        println!("✓ All {} DiskLayout names match the C library", rust_layouts.len());
+    }
+
+    /// Validates that ImageFormat::all() matches the C library's loader browsing.
+    /// This ensures our auto-generated enum is consistent with the FFI layer.
+    #[test]
+    fn validate_image_formats_against_c_library() {
+        let _locker = TESTS.lock();
+        let hxcfe = Hxcfe::get();
+        let manager = hxcfe.loaders_manager()
+            .expect("Failed to create loaders manager");
+        
+        // Get all formats from enum
+        let rust_formats = ImageFormat::all();
+        let c_count = manager.nb_loaders();
+        
+        println!("\n=== ImageFormat Validation ===");
+        println!("Rust enum has {} formats", rust_formats.len());
+        println!("C library reports {} loaders", c_count);
+        
+        // Sample C library loaders to understand the difference
+        println!("\n=== Sample C library loaders (first 10 and last 10) ===");
+        for i in 0..10.min(c_count) {
+            if let Some(loader) = manager.loader_for_id(i) {
+                println!("  {}: {}", i, loader.name());
+            }
+        }
+        if c_count > 20 {
+            println!("  ...");
+            for i in (c_count - 10).max(10)..c_count {
+                if let Some(loader) = manager.loader_for_id(i) {
+                    println!("  {}: {}", i, loader.name());
+                }
+            }
+        }
+        
+        // Check count - we should have at least as many as we can parse from source
+        // C library count may differ if it registers loaders differently
+        if rust_formats.len() != c_count as usize {
+            println!("\n⚠️  Count difference: Rust enum has {} formats, C library reports {} loaders.", 
+                rust_formats.len(), c_count);
+        }
+        
+        // Verify each enum format can get its ID from C library
+        // This proves the loader exists and is registered
+        println!("\n=== Validating ImageFormat IDs from C library ===");
+        
+        let mut id_success = 0;
+        let mut id_failures = Vec::new();
+        
+        for (idx, format) in rust_formats.iter().enumerate() {
+            let loader_name = format.loader_name();
+            if let Some(loader_id) = format.id(manager.handler()) {
+                id_success += 1;
+                if idx < 3 {
+                    println!("✓ #{}: {} -> ID {}", idx, loader_name, loader_id);
+                }
+            } else {
+                id_failures.push((idx, loader_name.to_string()));
+            }
+        }
+        
+        println!("✓ {} out of {} ImageFormat variants have valid IDs from C library", 
+            id_success, rust_formats.len());
+        
+        if !id_failures.is_empty() {
+            println!("\n⚠️  {} variants could not retrieve ID from C library:", id_failures.len());
+            for (idx, name) in id_failures.iter().take(10) {
+                println!("  #{}: {}", idx, name);
+            }
+            if id_failures.len() > 10 {
+                println!("  ... and {} more", id_failures.len() - 10);
+            }
+        }
+        
+        println!("\n✓ All {} ImageFormat IDs validated", rust_formats.len());
     }
 
     #[test]

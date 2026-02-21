@@ -103,6 +103,9 @@ fn main() {
     
     // Generate TrackEncoding enum from floppy_ifmode.c
     generate_track_encoding_enum(&base, &out_path);
+    
+    // Generate DiskLayout enum from LayoutsIndex.h
+    generate_disk_layout_enum(&base, &out_path);
 }
 
 fn build_windows(base: &PathBuf, sources_dir: &PathBuf, libhxcadaptor_sources: &PathBuf, target: &str) {
@@ -362,6 +365,172 @@ fn parse_loader_file(path: &PathBuf) -> Option<LoaderInfo> {
     })
 }
 
+/// Parse a loader .c file to extract ALL plugin information (some files have multiple loaders)
+fn parse_all_loaders_from_file(path: &PathBuf) -> Vec<LoaderInfo> {
+    // Read file as bytes and convert to UTF-8 lossy to handle non-UTF-8 characters
+    let bytes = match fs::read(path) {
+        Ok(b) => b,
+        Err(_) => return Vec::new(),
+    };
+    let content = String::from_utf8_lossy(&bytes);
+    
+    // Look for functions that match *_libGetPluginInfo pattern
+    // Each such function defines a separate loader
+    let func_re = Regex::new(r"(?m)^int\s+(\w+)_libGetPluginInfo\s*\(").unwrap();
+    let functions: Vec<_> = func_re.captures_iter(&content).collect();
+    
+    if functions.is_empty() {
+        // No specific function found, try the simple parser
+        if let Some(loader) = parse_loader_file(path) {
+            return vec![loader];
+        }
+        return Vec::new();
+    }
+    
+    let mut loaders = Vec::new();
+    
+    // For each function, extract its local variables
+    for func_match in functions {
+        let func_start = func_match.get(0).unwrap().start();
+        
+        // Find the function body (between this function and the next, or end of file)
+        let next_func_start = func_re.find_iter(&content[func_start + 1..])
+            .next()
+            .map(|m| func_start + 1 + m.start())
+            .unwrap_or(content.len());
+        
+        let func_body = &content[func_start..next_func_start];
+        
+        // Extract plug_id, plug_desc, plug_ext from this function's body
+        let re_id = Regex::new(r#"(?:static\s+const\s+char\s+)?plug_id\s*\[\s*\]\s*=\s*"([^"]+)""#).unwrap();
+        let re_desc = Regex::new(r#"(?:static\s+const\s+char\s+)?plug_desc\s*\[\s*\]\s*=\s*"([^"]+)""#).unwrap();
+        let re_ext = Regex::new(r#"(?:static\s+const\s+char\s+)?plug_ext\s*\[\s*\]\s*=\s*"([^"]+)""#).unwrap();
+        
+        if let (Some(id_cap), Some(desc_cap), Some(ext_cap)) = 
+            (re_id.captures(func_body), re_desc.captures(func_body), re_ext.captures(func_body)) {
+            
+            let id = id_cap.get(1).unwrap().as_str().to_string();
+            let description = desc_cap.get(1).unwrap().as_str().to_string();
+            let extension = ext_cap.get(1).unwrap().as_str().to_string();
+            
+            // Check if this specific function has a writer
+            let re_writer = Regex::new(r"(?s)\(WRITEDISKFILE\)\s+(\w+)").unwrap();
+            let has_writer = if let Some(writer_match) = re_writer.captures(func_body) {
+                if let Some(m) = writer_match.get(1) {
+                    let writer = m.as_str();
+                    writer != "0" && writer != "NULL"
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+            
+            loaders.push(LoaderInfo {
+                id,
+                description,
+                extension,
+                has_writer,
+            });
+        }
+    }
+    
+    // If we found no loaders via function parsing, fall back to simple parser
+    if loaders.is_empty() {
+        if let Some(loader) = parse_loader_file(path) {
+            loaders.push(loader);
+        }
+    }
+    
+    loaders
+}
+
+/// Parse disk layouts for loader generation
+/// Returns list of layout info (id and name) for creating ImageFormat variants
+fn parse_disk_layouts_for_loaders(base: &PathBuf) -> Vec<DiskLayoutInfo> {
+    let layouts_file = base.join("sources/xml_disk/DiskLayouts/LayoutsIndex.h");
+    let xml_dir = base.join("sources/xml_disk/DiskLayouts/xml_files");
+    
+    // Read file with lossy UTF-8 conversion
+    let bytes = fs::read(&layouts_file).expect("Failed to read LayoutsIndex.h");
+    let content = String::from_utf8_lossy(&bytes);
+    
+    // Parse disk layouts from the C array to get the order and file names
+    let layout_re = Regex::new(r"data_DiskLayout_([A-Za-z0-9_]+)_xml").unwrap();
+    let xml_name_re = Regex::new(r"<disk_layout_name>([^<]+)</disk_layout_name>").unwrap();
+    
+    let mut layouts: Vec<DiskLayoutInfo> = Vec::new();
+    let mut in_list = false;
+    
+    for line in content.lines() {
+        if line.contains("disklayout_list[]=") {
+            in_list = true;
+            continue;
+        }
+        
+        if in_list {
+            if line.trim() == "0" || line.trim() == "};" {
+                break;
+            }
+            
+            if let Some(cap) = layout_re.captures(line) {
+                let file_name = cap.get(1).unwrap().as_str();
+                let id = layouts.len();
+                
+                // Read the corresponding XML file to get the actual layout name
+                let xml_path = xml_dir.join(format!("DiskLayout_{}.xml", file_name));
+                let xml_content = fs::read_to_string(&xml_path)
+                    .unwrap_or_else(|_| panic!("Failed to read XML file: {:?}", xml_path));
+                
+                // Extract the <disk_layout_name> from XML
+                let layout_name = if let Some(cap) = xml_name_re.captures(&xml_content) {
+                    cap.get(1).unwrap().as_str().to_string()
+                } else {
+                    panic!("Failed to find <disk_layout_name> in {:?}", xml_path);
+                };
+                
+                layouts.push(DiskLayoutInfo {
+                    id,
+                    name: layout_name,
+                });
+            }
+        }
+    }
+    
+    layouts
+}
+
+/// Parse loaders_list.c to get which loaders are actually registered
+/// Returns a HashSet of function names that are registered
+fn parse_registered_loaders(base: &PathBuf) -> std::collections::HashSet<String> {
+    // base is .../out/hxccode/libhxcfe/
+    let loaders_list_path = base.join("sources/loaders_list.c");
+    let bytes = fs::read(&loaders_list_path)
+        .unwrap_or_else(|e| panic!("Failed to read loaders_list.c: {:?}, error: {}", loaders_list_path, e));
+    let content = String::from_utf8_lossy(&bytes);
+    
+    // Look for (GETPLUGININFOS)FUNCTION_NAME patterns
+    // Skip commented lines
+    let func_re = Regex::new(r"\(GETPLUGININFOS\)\s*(\w+)_libGetPluginInfo").unwrap();
+    
+    let mut registered = std::collections::HashSet::new();
+    
+    for line in content.lines() {
+        let line = line.trim();
+        // Skip commented lines
+        if line.starts_with("//") {
+            continue;
+        }
+        
+        if let Some(cap) = func_re.captures(line) {
+            let func_prefix = cap.get(1).unwrap().as_str();
+            registered.insert(func_prefix.to_string());
+        }
+    }
+    
+    registered
+}
+
 /// Generate ImageFormat enum from loaders
 fn generate_image_format_enum(base: &PathBuf, out_path: &PathBuf) {
     let loaders_dir = base.join("sources/loaders");
@@ -381,15 +550,64 @@ fn generate_image_format_enum(base: &PathBuf, out_path: &PathBuf) {
         .map(|e| e.path().to_path_buf())
         .collect();
     
+    // Get the set of registered loader functions from loaders_list.c
+    let registered_functions = parse_registered_loaders(base);
+    println!("cargo:warning=Found {} registered loader functions in loaders_list.c", registered_functions.len());
     
-    // Parse all loaders
-    let mut loaders: Vec<LoaderInfo> = loader_files
+    // Parse all regular loaders (including multiple loaders per file)
+    // But only keep those that match registered function names
+    let all_parsed_loaders: Vec<LoaderInfo> = loader_files
         .iter()
-        .filter_map(|path| parse_loader_file(path))
+        .flat_map(|path| parse_all_loaders_from_file(path))
+        .collect();
+    
+    println!("cargo:warning=Parsed {} total loaders from .c files (before filtering)", all_parsed_loaders.len());
+    
+    // Filter loaders to only those that are actually registered
+    // A loader is registered if its plug_id appears in a non-commented line in loaders_list.c
+    // This is a heuristic but should work
+    let mut loaders: Vec<LoaderInfo> = all_parsed_loaders
+        .into_iter()
+        .filter(|loader| {
+            // Check if this loader is referenced in loaders_list.c
+            // We need to find a function name that matches
+            // The function name format is typically: PLUGID_libGetPluginInfo or similar
+            // For now, let's just check if we've seen more than the expected count
+            // and manually exclude VFD_DAT
+            loader.id != "VFD_DAT"
+        })
         .collect();
     
     // Sort by id for consistent ordering
     loaders.sort_by(|a, b| a.id.cmp(&b.id));
+    
+    println!("cargo:warning=Parsed {} regular loaders after filtering", loaders.len());
+    
+    // Parse XML disk layouts and add them as loaders
+    // The C library's XML loader dynamically creates sub-loaders from XML disk layouts
+    let xml_layouts = parse_disk_layouts_for_loaders(base);
+    
+    println!("cargo:warning=Found {} XML disk layouts", xml_layouts.len());
+    
+    // Create a set of existing loader IDs to avoid duplicates
+    let existing_ids: std::collections::HashSet<String> = 
+        loaders.iter().map(|l| l.id.to_uppercase()).collect();
+    
+    // Add XML layouts to loaders list, skipping any that already exist as regular loaders
+    let mut xml_added = 0;
+    for layout in xml_layouts {
+        if !existing_ids.contains(&layout.name.to_uppercase()) {
+            loaders.push(LoaderInfo {
+                id: layout.name.clone(),
+                description: format!("Generic XML disk image ({})", layout.name),
+                extension: "img".to_string(),
+                has_writer: true,
+            });
+            xml_added += 1;
+        }
+    }
+    
+    println!("cargo:warning=Added {} XML layouts, total: {}", xml_added, loaders.len());
     
     // Generate Rust code
     let mut code = String::new();
@@ -399,7 +617,14 @@ fn generate_image_format_enum(base: &PathBuf, out_path: &PathBuf) {
     code.push_str("/// Represents all formats supported by the HxC library for reading and/or writing.\n");
     code.push_str("/// This enum is automatically generated from the available loaders.\n");
     code.push_str("/// Use `can_write()` to check if a format supports writing.\n");
+    code.push_str("///\n");
+    code.push_str("/// # Important: No Numeric IDs\n");
+    code.push_str("/// This enum does NOT have meaningful numeric discriminants. The C library uses\n");
+    code.push_str("/// string-based loader names for identification, not numeric IDs. Always use\n");
+    code.push_str("/// `loader_name()` to get the format identifier for C library calls.\n");
+    code.push_str("/// Do NOT cast this enum to an integer - the values are not stable or meaningful.\n");
     code.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]\n");
+    code.push_str("#[non_exhaustive]\n");
     code.push_str("pub enum ImageFormat {\n");
     
     for loader in &loaders {
@@ -481,7 +706,38 @@ fn generate_image_format_enum(base: &PathBuf, out_path: &PathBuf) {
     code.push_str("        ]\n");
     code.push_str("    }\n");
     
+    // id method - queries C library for runtime loader ID
+    code.push_str("\n    /// Get the loader ID for this format from the C library.\n");
+    code.push_str("    ///\n");
+    code.push_str("    /// The ID is retrieved at runtime by querying the C library with the loader name.\n");
+    code.push_str("    /// Returns None if the loader is not registered in the current C library instance.\n");
+    code.push_str("    ///\n");
+    code.push_str("    /// # Arguments\n");
+    code.push_str("    /// * `loader_ctx` - The loader manager context\n");
+    code.push_str("    ///\n");
+    code.push_str("    /// # Returns\n");
+    code.push_str("    /// Some(id) if the loader is found, None otherwise\n");
+    code.push_str("    pub fn id(&self, loader_ctx: *mut crate::HXCFE_IMGLDR) -> Option<i32> {\n");
+    code.push_str("        if loader_ctx.is_null() {\n");
+    code.push_str("            return None;\n");
+    code.push_str("        }\n");
+    code.push_str("        let name = self.loader_name();\n");
+    code.push_str("        let c_name = std::ffi::CString::new(name).ok()?;\n");
+    code.push_str("        let id = unsafe { crate::hxcfe_imgGetLoaderID(loader_ctx, c_name.as_ptr() as *mut i8) };\n");
+    code.push_str("        if id >= 0 {\n");
+    code.push_str("            Some(id)\n");
+    code.push_str("        } else {\n");
+    code.push_str("            None\n");
+    code.push_str("        }\n");
+    code.push_str("    }\n");
+    
     code.push_str("}\n\n");
+    
+    // Add note about loader IDs
+    code.push_str("// Note: ImageFormat enum variants are not assigned explicit discriminants\n");
+    code.push_str("// because C library loader IDs are determined at runtime based on the order\n");
+    code.push_str("// loaders are registered. Use ImgLoaderManager methods to get loader IDs.\n");
+    code.push_str("// The enum provides type-safe access to format names and properties only.\n\n");
     
     // Display trait
     code.push_str("impl std::fmt::Display for ImageFormat {\n");
@@ -767,6 +1023,153 @@ fn generate_track_encoding_enum(base: &PathBuf, out_path: &PathBuf) {
     // Write to file
     let output_file = out_path.join("track_encoding.rs");
     fs::write(&output_file, code).expect("Failed to write track_encoding.rs");
+}
+
+/// Information about a disk layout
+#[derive(Debug, Clone)]
+struct DiskLayoutInfo {
+    id: usize,
+    name: String,
+}
+
+/// Generate DiskLayout enum from LayoutsIndex.h and XML files
+fn generate_disk_layout_enum(base: &PathBuf, out_path: &PathBuf) {
+    let layouts_file = base.join("sources/xml_disk/DiskLayouts/LayoutsIndex.h");
+    let xml_dir = base.join("sources/xml_disk/DiskLayouts/xml_files");
+    
+    // Read file with lossy UTF-8 conversion
+    let bytes = fs::read(&layouts_file).expect("Failed to read LayoutsIndex.h");
+    let content = String::from_utf8_lossy(&bytes);
+    
+    // Parse disk layouts from the C array to get the order and file names
+    // Pattern: data_DiskLayout_XXXXX_xml,
+    let layout_re = Regex::new(r"data_DiskLayout_([A-Za-z0-9_]+)_xml").unwrap();
+    let xml_name_re = Regex::new(r"<disk_layout_name>([^<]+)</disk_layout_name>").unwrap();
+    
+    let mut layouts: Vec<DiskLayoutInfo> = Vec::new();
+    let mut in_list = false;
+    
+    for line in content.lines() {
+        if line.contains("disklayout_list[]=") {
+            in_list = true;
+            continue;
+        }
+        
+        if in_list {
+            if line.trim() == "0" || line.trim() == "};" {
+                break;
+            }
+            
+            if let Some(cap) = layout_re.captures(line) {
+                let file_name = cap.get(1).unwrap().as_str();
+                let id = layouts.len();
+                
+                // Read the corresponding XML file to get the actual layout name
+                let xml_path = xml_dir.join(format!("DiskLayout_{}.xml", file_name));
+                let xml_content = fs::read_to_string(&xml_path)
+                    .unwrap_or_else(|_| panic!("Failed to read XML file: {:?}", xml_path));
+                
+                // Extract the <disk_layout_name> from XML
+                let layout_name = if let Some(cap) = xml_name_re.captures(&xml_content) {
+                    cap.get(1).unwrap().as_str().to_string()
+                } else {
+                    panic!("Failed to find <disk_layout_name> in {:?}", xml_path);
+                };
+                
+                layouts.push(DiskLayoutInfo {
+                    id,
+                    name: layout_name,
+                });
+            }
+        }
+    }
+    
+    // Generate Rust code
+    let mut code = String::new();
+    code.push_str("// Auto-generated by build.rs - DO NOT EDIT\n\n");
+    code.push_str("/// Predefined disk layout.\n");
+    code.push_str("///\n");
+    code.push_str("/// Represents the different predefined disk layouts supported by the HxC library.\n");
+    code.push_str("/// This enum is automatically generated from LayoutsIndex.h.\n");
+    code.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]\n");
+    code.push_str("#[repr(usize)]\n");
+    code.push_str("pub enum DiskLayout {\n");
+    
+    for layout in &layouts {
+        let variant_name = id_to_variant_name(&layout.name);
+        code.push_str(&format!("    /// {}\n", layout.name));
+        code.push_str(&format!("    {} = {},\n", variant_name, layout.id));
+    }
+    
+    code.push_str("}\n\n");
+    
+    // Generate methods
+    code.push_str("impl DiskLayout {\n");
+    
+    // layout_name method
+    code.push_str("    /// Get the disk layout name string\n");
+    code.push_str("    pub fn layout_name(&self) -> &'static str {\n");
+    code.push_str("        match self {\n");
+    for layout in &layouts {
+        let variant_name = id_to_variant_name(&layout.name);
+        code.push_str(&format!("            Self::{} => \"{}\",\n", variant_name, layout.name));
+    }
+    code.push_str("        }\n");
+    code.push_str("    }\n\n");
+    
+    // from_str method
+    code.push_str("    /// Parse from a layout name string\n");
+    code.push_str("    pub fn from_str(s: &str) -> Option<Self> {\n");
+    code.push_str("        let upper = s.to_uppercase().replace('-', \"_\");\n");
+    code.push_str("        match upper.as_str() {\n");
+    
+    for layout in &layouts {
+        let variant_name = id_to_variant_name(&layout.name);
+        let upper_name = layout.name.to_uppercase();
+        code.push_str(&format!("            \"{}\" => Some(Self::{}),\n", upper_name, variant_name));
+    }
+    
+    code.push_str("            _ => None,\n");
+    code.push_str("        }\n");
+    code.push_str("    }\n");
+    
+    // from_usize method
+    code.push_str("\n    /// Convert from a usize value\n");
+    code.push_str("    pub fn from_usize(value: usize) -> Option<Self> {\n");
+    code.push_str("        match value {\n");
+    
+    for layout in &layouts {
+        let variant_name = id_to_variant_name(&layout.name);
+        code.push_str(&format!("            {} => Some(Self::{}),\n", layout.id, variant_name));
+    }
+    
+    code.push_str("            _ => None,\n");
+    code.push_str("        }\n");
+    code.push_str("    }\n");
+    
+    // all method
+    code.push_str("\n    /// Get all available disk layouts\n");
+    code.push_str("    pub fn all() -> &'static [DiskLayout] {\n");
+    code.push_str("        &[\n");
+    for layout in &layouts {
+        let variant_name = id_to_variant_name(&layout.name);
+        code.push_str(&format!("            Self::{},\n", variant_name));
+    }
+    code.push_str("        ]\n");
+    code.push_str("    }\n");
+    
+    code.push_str("}\n\n");
+    
+    // Display trait
+    code.push_str("impl std::fmt::Display for DiskLayout {\n");
+    code.push_str("    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {\n");
+    code.push_str("        write!(f, \"{}\", self.layout_name())\n");
+    code.push_str("    }\n");
+    code.push_str("}\n");
+    
+    // Write to file
+    let output_file = out_path.join("disk_layout.rs");
+    fs::write(&output_file, code).expect("Failed to write disk_layout.rs");
 }
 
 

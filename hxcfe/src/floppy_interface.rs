@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, ops::Deref};
 
 use crate::{Hxcfe, InterfaceMode};
 
@@ -24,7 +24,13 @@ impl<'hfe> FloppyInterface<'hfe> {
         self.mode.mode_name()
     }
 
-    pub fn description(&self) -> &str {
-        self.mode.description()
+}
+
+
+impl Deref for FloppyInterface<'_> {
+    type Target = InterfaceMode;
+
+    fn deref(&self) -> &Self::Target {
+        &self.mode
     }
 }

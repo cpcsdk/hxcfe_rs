@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 #[cfg(feature = "usb")]
 use hxcfe::DriveId;
-use hxcfe::{FileSystemId, Hxcfe, ImageFormat, InterfaceMode, LayoutIndex};
+use hxcfe::{DiskLayout, FileSystemId, Hxcfe, ImageFormat, InterfaceMode};
 use std::path::PathBuf;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -137,7 +137,7 @@ pub fn run(cli: &HxcfeCli) -> Result<()> {
 
     // Script execution
     if let Some(_script) = &cli.script {
-        println!("Script execution not yet implemented");
+        panic!("Script execution not yet implemented in the rust version");
         // hxc.exec_script_file(script)?;
     }
 
@@ -263,14 +263,13 @@ fn print_disk_layout(hxc: &Hxcfe) -> Result<()> {
         .layout_manager()
         .context("Failed to initialize layout manager")?;
 
-    let nb_layouts = layout_manager.nb_layouts();
-    for i in 0..nb_layouts {
-        let name = layout_manager.layout_name(LayoutIndex::new(i));
-        let desc = layout_manager.layout_description(LayoutIndex::new(i));
+    for layout in DiskLayout::all() {
+        let name = layout_manager.layout_name(*layout);
+        let desc = layout_manager.layout_description(*layout);
         println!("{:<20} :  {}", name, desc);
     }
 
-    println!("\n{} Layout\n", nb_layouts);
+    println!("\n{} Layout\n", DiskLayout::all().len());
 
     Ok(())
 }

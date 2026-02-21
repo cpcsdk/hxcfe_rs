@@ -182,6 +182,15 @@ impl ImgLoaderManager {
             Some(Self { handler, hxcfe })
         }
     }
+    
+    /// Get the internal handler pointer for use with C library functions.
+    ///
+    /// # Safety
+    /// This exposes the raw C pointer. The pointer is only valid as long as
+    /// this ImgLoaderManager instance is alive.
+    pub fn handler(&self) -> *mut HXCFE_IMGLDR {
+        self.handler
+    }
 
     /// Get the total number of available image loaders.
     pub fn nb_loaders(&self) -> i32 {

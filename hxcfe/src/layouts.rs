@@ -5,7 +5,7 @@ use hxcfe_sys::{
     hxcfe_initXmlFloppy, hxcfe_numberOfXmlLayout,
 };
 
-use crate::{Hxcfe, LayoutIndex};
+use crate::{Hxcfe, DiskLayout};
 
 pub struct LayoutManager<'hfe> {
     handler: *mut HXCFE_XMLLDR,
@@ -39,16 +39,16 @@ impl<'hfe> LayoutManager<'hfe> {
         numberofloader as _
     }
 
-    pub fn layout_name(&self, at: LayoutIndex) -> &str {
-        let name = unsafe { hxcfe_getXmlLayoutName(self.handler, at.get()) };
+    pub fn layout_name(&self, layout: DiskLayout) -> &str {
+        let name = unsafe { hxcfe_getXmlLayoutName(self.handler, layout as _) };
         if name.is_null() {
             return "";
         }
         unsafe { CStr::from_ptr(name) }.to_str().unwrap_or("")
     }
 
-    pub fn layout_description(&self, at: LayoutIndex) -> &str {
-        let desc = unsafe { hxcfe_getXmlLayoutDesc(self.handler, at.get()) };
+    pub fn layout_description(&self, layout: DiskLayout) -> &str {
+        let desc = unsafe { hxcfe_getXmlLayoutDesc(self.handler, layout as _) };
         if desc.is_null() {
             return "";
         }
