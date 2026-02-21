@@ -1,41 +1,30 @@
-use std::{ffi::CStr, marker::PhantomData};
+use std::marker::PhantomData;
 
-use hxcfe_sys::{hxcfe_getFloppyInterfaceModeDesc, hxcfe_getFloppyInterfaceModeName};
-
-use crate::{Hxcfe, InterfaceIndex};
+use crate::{Hxcfe, InterfaceMode};
 
 pub struct FloppyInterface<'hfe> {
-    hfe: &'hfe Hxcfe,
-    idx: InterfaceIndex,
+    mode: InterfaceMode,
     phantom: PhantomData<&'hfe Hxcfe>,
 }
 
 impl<'hfe> FloppyInterface<'hfe> {
-    pub fn new(hfe: &'hfe Hxcfe, idx: InterfaceIndex) -> Option<FloppyInterface<'hfe>> {
-        if unsafe { hxcfe_getFloppyInterfaceModeName(hfe.handler, idx.get()) }.is_null() {
-            None
-        } else {
-            Some(FloppyInterface {
-                hfe,
-                idx,
-                phantom: PhantomData,
-            })
-        }
+    pub fn new(hfe: &'hfe Hxcfe, mode: InterfaceMode) -> Option<FloppyInterface<'hfe>> {
+        // InterfaceMode is already validated at compile time, so always return Some
+        Some(FloppyInterface {
+            mode,
+            phantom: PhantomData,
+        })
+    }
+
+    pub fn mode(&self) -> InterfaceMode {
+        self.mode
     }
 
     pub fn name(&self) -> &str {
-        let name = unsafe { hxcfe_getFloppyInterfaceModeName(self.hfe.handler, self.idx.get()) };
-        if name.is_null() {
-            return "";
-        }
-        unsafe { CStr::from_ptr(name) }.to_str().unwrap_or("")
+        self.mode.mode_name()
     }
 
     pub fn description(&self) -> &str {
-        let name = unsafe { hxcfe_getFloppyInterfaceModeDesc(self.hfe.handler, self.idx.get()) };
-        if name.is_null() {
-            return "";
-        }
-        unsafe { CStr::from_ptr(name) }.to_str().unwrap_or("")
+        self.mode.description()
     }
 }

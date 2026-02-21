@@ -406,35 +406,3 @@ impl fmt::Display for LayoutIndex {
         write!(f, "{}", self.0)
     }
 }
-
-/// Interface index for selecting floppy interfaces.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct InterfaceIndex(i32);
-
-impl InterfaceIndex {
-    pub const fn new(index: i32) -> Self {
-        Self(index)
-    }
-
-    pub const fn get(self) -> i32 {
-        self.0
-    }
-}
-
-impl From<i32> for InterfaceIndex {
-    fn from(index: i32) -> Self {
-        Self(index)
-    }
-}
-
-impl From<InterfaceIndex> for i32 {
-    fn from(index: InterfaceIndex) -> i32 {
-        index.0
-    }
-}
-
-impl fmt::Display for InterfaceIndex {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}

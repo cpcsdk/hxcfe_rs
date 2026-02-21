@@ -12,7 +12,7 @@ mod usb;
 pub use fs_manager::FileSystemManager;
 use once_cell::sync::Lazy;
 pub use types::{
-    DriveId, FileHandle, FileSystemId, HeadId, InterfaceIndex, InterfaceModeId, LayoutIndex,
+    DriveId, FileHandle, FileSystemId, HeadId, InterfaceModeId, LayoutIndex,
     SectorId, TrackId,
 };
 
@@ -34,7 +34,10 @@ use hxcfe_sys::{
 pub use img::Img;
 pub use img_loaders::ImgLoaderManager;
 pub use layouts::LayoutManager;
+
+// Re-export generated enums from hxcfe-sys
 pub use hxcfe_sys::ImageFormat;
+pub use hxcfe_sys::InterfaceMode;
 
 #[repr(i32)]
 #[derive(enumn::N, PartialEq, Debug)]
@@ -179,9 +182,9 @@ impl Hxcfe {
 
     pub fn floppy_interface<'hfe>(
         &'hfe self,
-        idx: InterfaceIndex,
+        mode: InterfaceMode,
     ) -> Option<FloppyInterface<'hfe>> {
-        FloppyInterface::new(self, idx)
+        FloppyInterface::new(self, mode)
     }
 
     /// Generate a new floppy disk image from a directory path.
@@ -388,7 +391,7 @@ mod test {
 
     use once_cell::sync::Lazy;
 
-    use crate::{Hxcfe, InterfaceIndex, LayoutIndex};
+    use crate::{Hxcfe, InterfaceMode, LayoutIndex};
 
     static TESTS: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
@@ -430,10 +433,10 @@ mod test {
     fn list_interfaces() {
         let _locker = TESTS.lock();
         let hxcfe = Hxcfe::get();
-        let mut idx = 0;
-        while let Some(interface) = hxcfe.floppy_interface(InterfaceIndex::new(idx)) {
-            idx += 1;
-            println!("{idx} {} {}", interface.name(), interface.description());
+        for mode in InterfaceMode::all() {
+            if let Some(interface) = hxcfe.floppy_interface(*mode) {
+                println!("{} {} {}", *mode as i32, interface.name(), interface.description());
+            }
         }
     }
 

@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 #[cfg(feature = "usb")]
 use hxcfe::DriveId;
-use hxcfe::{FileSystemId, Hxcfe, ImageFormat, InterfaceIndex, LayoutIndex};
+use hxcfe::{FileSystemId, Hxcfe, ImageFormat, InterfaceMode, LayoutIndex};
 use std::path::PathBuf;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -281,24 +281,18 @@ fn print_interface_list(hxc: &Hxcfe) -> Result<()> {
     println!("---------------------------------------------------------------------------");
     println!("Interface ID                  (code)   DESCRIPTION                         \n");
 
-    let mut count = 0;
-    for idx in 0..256 {
-        // Reasonable upper bound
-        if let Some(interface) = hxc.floppy_interface(InterfaceIndex::new(idx)) {
+    for mode in InterfaceMode::all() {
+        if let Some(interface) = hxc.floppy_interface(*mode) {
             println!(
                 "{:<30}(0x{:02X}) : {}",
                 interface.name(),
-                idx,
+                *mode as i32,
                 interface.description()
             );
-            count += 1;
-        } else if count > 0 {
-            // Stop after first gap with at least one interface found
-            break;
         }
     }
 
-    println!("\n{} Modes\n", count);
+    println!("\n{} Modes\n", InterfaceMode::all().len());
 
     Ok(())
 }
