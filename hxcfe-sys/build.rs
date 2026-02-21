@@ -358,9 +358,10 @@ fn build_wasm(
     add_common_includes(&mut build, sources_dir, base, libhxcadaptor_sources);
     add_common_defines(&mut build);
 
-    // Emscripten/WASM-specific: Use arc4random for entropy (provided by Emscripten libc)
-    // This is needed for expat XML library to generate random data
-    build.define("HAVE_ARC4RANDOM_BUF", None);
+    // Emscripten/WASM-specific: Don't use arc4random_buf as it's not available in all emscripten versions
+    // Expat will fall back to other entropy sources (getrandom, /dev/urandom, etc.)
+    // or use a weaker PRNG if needed
+    // build.define("HAVE_ARC4RANDOM_BUF", None);  // Disabled - not available in emscripten
 
     // WASM optimization flags
     if target.contains("wasm32") {
