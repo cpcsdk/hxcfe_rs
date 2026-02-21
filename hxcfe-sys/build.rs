@@ -2,6 +2,58 @@ use std::env;
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
+/// Files to exclude from compilation (command-line tools, tests, examples)
+const EXCLUDED_FILES: &[&str] = &[
+    "test", "example", "Demo", "HxCFloppyEmulator_cmdline", "Generic",
+    "adfvolinfo.c", "nt4_dev.c", "fuzz", "xmlwf", "gennmtab",
+    "FATIOlib\\Main.c", "FATIOlib/Main.c",
+    "xdms.c", "minizip.c", "miniunz.c", "untgz.c", "bmptoh.c",
+    "programs",
+];
+
+/// Checks if a path should be excluded from compilation
+fn should_exclude(path_str: &str, additional_exclusions: &[&str]) -> bool {
+    EXCLUDED_FILES.iter().any(|&e| path_str.contains(e)) ||
+    additional_exclusions.iter().any(|&e| path_str.contains(e))
+}
+
+/// Collects C files from a directory, applying exclusion rules
+fn collect_c_files(dir: &PathBuf, exclusions: &[&str]) -> Vec<PathBuf> {
+    WalkDir::new(dir)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "c"))
+        .filter(|e| !should_exclude(&e.path().to_string_lossy(), exclusions))
+        .map(|e| e.path().to_path_buf())
+        .collect()
+}
+
+/// Configures common includes for the build
+fn add_common_includes(build: &mut cc::Build, sources_dir: &PathBuf, base: &PathBuf, libhxcadaptor_sources: &PathBuf) {
+    build
+        .include(sources_dir)
+        .include(libhxcadaptor_sources)
+        .include(base.parent().unwrap().join("libusbhxcfe/sources"))
+        .include(base.parent().unwrap().join("build"))
+        .include(sources_dir.join("thirdpartylibs/zlib"))
+        .include(sources_dir.join("thirdpartylibs/zlib/contrib/minizip"))
+        .include(sources_dir.join("thirdpartylibs/xdms"))
+        .include(sources_dir.join("thirdpartylibs/xdms/xdms-1.3.2/src"))
+        .include(sources_dir.join("thirdpartylibs/expat/lib"))
+        .include(sources_dir.join("thirdpartylibs/FATIOlib"))
+        .include(sources_dir.join("thirdpartylibs/adflib/Lib"))
+        .include(sources_dir.join("thirdpartylibs/lz4/lib"));
+}
+
+/// Configures common defines for the build
+fn add_common_defines(build: &mut cc::Build) {
+    build
+        .define("XML_STATIC", None)
+        .define("XML_GE", "1")
+        .define("XML_DTD", "1")
+        .warnings(false);
+}
+
 fn main() {
     // setup paths of interest
     let original_base: PathBuf = "vendor/HxCFloppyEmulator/".into();
@@ -29,308 +81,137 @@ fn main() {
     println!("cargo:include={}", include_dir.display());
 
     // Build with cc crate for all platforms (unified build system)
-    // Platform-specific handling for Windows, Linux/macOS, and WASM
     if target.contains("wasm") {
-        eprintln!("Building libhxcfe and libhxcadaptor for WebAssembly target");
+        eprintln!("Building for WebAssembly target");
         build_wasm(&base, &sources_dir, &libhxcadaptor_sources, &out_path, &target);
     } else if target.contains("windows") {
-        let toolchain = if target.contains("msvc") { "MSVC" } else { "MinGW/GCC" };
-        eprintln!("Building libhxcfe and libhxcadaptor with {} using cc crate", toolchain);
-
-        // Collect all .c files from sources directory, excluding test files and examples
-        let mut c_files = Vec::new();
-
-        // Add libhxcadaptor C files
-        for entry in WalkDir::new(&libhxcadaptor_sources)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().is_some_and(|ext| ext == "c"))
-        {
-            c_files.push(entry.path().to_path_buf());
-        }
-        eprintln!("Found {} C files in libhxcadaptor", c_files.len());
-
-        // Add libhxcfe C files
-        for entry in WalkDir::new(&sources_dir)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().is_some_and(|ext| ext == "c"))
-        {
-            let path = entry.path();
-            let path_str = path.to_string_lossy();
-            // Skip test files, examples, demos, command-line tools, Generic templates,
-            // Windows GUI files (adfvolinfo.c, nt4_dev.c), fuzzing tests, xmlwf utility,
-            // FATIOlib Main.c (test program), command-line programs with main(),
-            // bmptoh.c (convert tool with main() - needs sysexits.h)
-            // NOTE: Now including minizip, xdms, imz_loader, dms_loader (enabled via unistd.h shim)
-            if path_str.contains("test") 
-                || path_str.contains("example")
-                || path_str.contains("Demo")
-                || path_str.contains("HxCFloppyEmulator_cmdline")
-                || path_str.contains("Generic")
-                || path_str.contains("adfvolinfo.c")
-                || path_str.contains("nt4_dev.c")
-                || path_str.contains("fuzz")
-                || path_str.contains("xmlwf")
-                || path_str.contains("gennmtab")
-                || path_str.contains("FATIOlib\\Main.c")
-                || path_str.contains("FATIOlib/Main.c")
-                || path_str.contains("xdms.c")  // Command-line program (has main()), not needed for library
-                || path_str.contains("minizip.c")  // Command-line program (has main())
-                || path_str.contains("miniunz.c")  // Command-line program (has main())
-                || path_str.contains("untgz.c")  // Command-line program (has main())
-                || path_str.contains("bmptoh.c")  // Convert tool with main(), needs sysexits.h (POSIX)
-                || path_str.contains("programs")
-            // CLI utilities
-            {
-                continue;
-            }
-            c_files.push(path.to_path_buf());
-        }
-
-        let hxcfe_count = c_files.len();
-        eprintln!(
-            "Found {} total C files to compile (libhxcfe + libhxcadaptor)",
-            hxcfe_count
-        );
-
-        // Add USB C files if feature is enabled (check via cargo env var)
-        let usb_enabled = env::var("CARGO_FEATURE_USB").is_ok();
-        if usb_enabled {
-            let libusbhxcfe_sources = base.parent().unwrap().join("libusbhxcfe/sources");
-            for entry in WalkDir::new(&libusbhxcfe_sources)
-                .into_iter()
-                .filter_map(|e| e.ok())
-                .filter(|e| e.path().extension().is_some_and(|ext| ext == "c"))
-            {
-                let path = entry.path();
-                let path_str = path.to_string_lossy();
-                // Skip test files, examples, and platform-specific subdirectories
-                if path_str.contains("test")
-                    || path_str.contains("example")
-                    || path_str.contains("/linux/")
-                    || path_str.contains("/macosx/")
-                    || path_str.contains("\\linux\\")
-                    || path_str.contains("\\macosx\\")
-                {
-                    continue;
-                }
-                c_files.push(path.to_path_buf());
-            }
-            eprintln!("Added {} USB C files", c_files.len() - hxcfe_count);
-        }
-
-        // All loaders now enabled via Windows unistd.h shim (src/win_compat/unistd.h)
-        // ✅ ADZ: gzip-compressed disk images (zlib with gzip support)
-        // ✅ IMZ: ZIP-compressed disk images (minizip)
-        // ✅ DMS: Amiga DiskMasher compressed (xdms library)
-        // No stubs needed!
-
-        // Build with cc crate
-        let mut build = cc::Build::new();
-        for file in c_files {
-            build.file(&file);
-        }
-
-        // On Windows, add our compatibility headers BEFORE standard includes
-        // This allows our unistd.h shim to be found
-        build.include("src/win_compat");
-
-        build
-            .include(&sources_dir)
-            .include(&libhxcadaptor_sources)
-            .include(base.parent().unwrap().join("libusbhxcfe/sources")) // For usb_hxcfloppyemulator.h
-            .include(base.parent().unwrap().join("build"))
-            .include(sources_dir.join("thirdpartylibs/zlib"))
-            .include(sources_dir.join("thirdpartylibs/zlib/contrib/minizip")) // For IMZ loader
-            .include(sources_dir.join("thirdpartylibs/xdms")) // For DMS loader
-            .include(sources_dir.join("thirdpartylibs/xdms/xdms-1.3.2/src")) // For DMS loader headers
-            .include(sources_dir.join("thirdpartylibs/expat/lib")) // Updated path for expat 2.x
-            .include(sources_dir.join("thirdpartylibs/FATIOlib"))
-            .include(sources_dir.join("thirdpartylibs/adflib/Lib"))
-            .include(sources_dir.join("thirdpartylibs/adflib/Lib/Win32"))
-            .include(sources_dir.join("thirdpartylibs/lz4/lib"));
-
-        // Add USB-specific includes for Windows
-        if usb_enabled {
-            build.include(base.parent().unwrap().join("libusbhxcfe/sources/win32")); // For ftd2xx.h
-            eprintln!("USB feature enabled - added win32 include path for ftd2xx.h");
-        }
-
-        build
-            .define("WIN32", None) // MSVC needs WIN32 defined
-            // Z_SOLO removed: gzip support now enabled via Windows unistd.h shim (src/win_compat/unistd.h)
-            // This enables ADZ, IMZ, and DMS loaders
-            .define("XML_STATIC", None) // Use static linking for expat XML library
-            .define("XML_GE", "1") // Enable general entities in expat (required by expat 2.5+)
-            .define("XML_DTD", "1") // Enable DTD processing in expat
-            .warnings(false);
-
-        // For MinGW, add -static-libgcc to match original Makefile behavior
-        // This statically links libgcc so executables don't require libgcc_s_seh-1.dll
-        if target.contains("gnu") {
-            build.flag("-static-libgcc");
-            eprintln!("MinGW: Added -static-libgcc flag to statically link GCC runtime");
-        }
-
-        build.compile("hxcfe");
-
-        // Note: libhxcadaptor is now compiled together with libhxcfe
-        // No separate linking needed
-
-        // Link Windows system libraries that might be needed
-        println!("cargo:rustc-link-lib=dylib=advapi32");
-        println!("cargo:rustc-link-lib=dylib=ws2_32");
-
-        // Link FTDI USB library if USB feature is enabled
-        // Note: The original Makefile builds a separate libusbhxcfe.dll for MinGW using:
-        //   LDFLAGS += -static-libgcc ../sources/win32/libusbhxcfe.def
-        // For Rust static linking, we currently support MSVC only with ftd2xx.lib
-        // TODO: MinGW USB support would require either:
-        //   1. Dynamic loading of ftd2xx.dll at runtime, or
-        //   2. Finding a MinGW-compatible import library for ftd2xx
-        if usb_enabled && target.contains("msvc") {
-            let ftdi_lib_dir = base.parent().unwrap().join("libusbhxcfe/sources/win32");
-            println!("cargo:rustc-link-search=native={}", ftdi_lib_dir.display());
-            println!("cargo:rustc-link-lib=static=ftd2xx");
-            eprintln!("USB feature enabled - linking ftd2xx library (MSVC)");
-        } else if usb_enabled {
-            eprintln!("WARNING: USB feature enabled but ftd2xx.lib is MSVC format only");
-            eprintln!("         USB functionality will not be available with MinGW build");
-            eprintln!("         (Original Makefile builds separate DLL; Rust uses static linking)");
-        }
-
-        let toolchain_name = if target.contains("msvc") { "MSVC" } else { "MinGW/GCC" };
-        eprintln!("Successfully built libhxcfe and libhxcadaptor with {}", toolchain_name);
+        build_windows(&base, &sources_dir, &libhxcadaptor_sources, &target);
     } else {
-        // Linux/macOS/other Unix platforms
-        eprintln!("Building libhxcfe and libhxcadaptor with cc crate for Unix platforms");
-
-        // Collect all .c files from sources directory, excluding test files and examples
-        let mut c_files = Vec::new();
-
-        // Add libhxcadaptor C files
-        for entry in WalkDir::new(&libhxcadaptor_sources)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().is_some_and(|ext| ext == "c"))
-        {
-            c_files.push(entry.path().to_path_buf());
-        }
-        eprintln!("Found {} C files in libhxcadaptor", c_files.len());
-
-        // Add libhxcfe C files
-        for entry in WalkDir::new(&sources_dir)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().is_some_and(|ext| ext == "c"))
-        {
-            let path = entry.path();
-            let path_str = path.to_string_lossy();
-            // Skip test files, examples, demos, command-line tools, Windows-specific files, etc.
-            if path_str.contains("test") 
-                || path_str.contains("example")
-                || path_str.contains("Demo")
-                || path_str.contains("HxCFloppyEmulator_cmdline")
-                || path_str.contains("Generic")
-                || path_str.contains("adfvolinfo.c")
-                || path_str.contains("nt4_dev.c")
-                || path_str.contains("fuzz")
-                || path_str.contains("xmlwf")
-                || path_str.contains("gennmtab")
-                || path_str.contains("FATIOlib/Main.c")
-                || path_str.contains("xdms.c")  // Command-line program (has main())
-                || path_str.contains("minizip.c")  // Command-line program (has main())
-                || path_str.contains("miniunz.c")  // Command-line program (has main())
-                || path_str.contains("untgz.c")  // Command-line program (has main())
-                || path_str.contains("bmptoh.c")  // Convert tool with main()
-                || path_str.contains("iowin32.c")  // Windows-specific minizip I/O
-                || path_str.contains("programs")
-                || path_str.contains("/Win32/")  // Skip Windows-specific subdirectories
-                || path_str.contains("\\Win32\\")
-            {
-                continue;
-            }
-            c_files.push(path.to_path_buf());
-        }
-
-        eprintln!(
-            "Found {} total C files to compile (libhxcfe + libhxcadaptor)",
-            c_files.len()
-        );
-
-        // Add USB C files if feature is enabled (check via cargo env var)
-        let usb_enabled = env::var("CARGO_FEATURE_USB").is_ok();
-        let hxcfe_count = c_files.len();
-        if usb_enabled {
-            let libusbhxcfe_sources = base.parent().unwrap().join("libusbhxcfe/sources");
-            for entry in WalkDir::new(&libusbhxcfe_sources)
-                .into_iter()
-                .filter_map(|e| e.ok())
-                .filter(|e| e.path().extension().is_some_and(|ext| ext == "c"))
-            {
-                let path = entry.path();
-                let path_str = path.to_string_lossy();
-                // Skip test files, examples, and platform-specific subdirectories (Windows and macOS)
-                if path_str.contains("test")
-                    || path_str.contains("example")
-                    || path_str.contains("/win32/")
-                    || path_str.contains("/macosx/")
-                    || path_str.contains("\\win32\\")
-                    || path_str.contains("\\macosx\\")
-                {
-                    continue;
-                }
-                c_files.push(path.to_path_buf());
-            }
-            eprintln!("Added {} USB C files", c_files.len() - hxcfe_count);
-        }
-
-        // Build with cc crate
-        let mut build = cc::Build::new();
-        for file in c_files {
-            build.file(&file);
-        }
-
-        build
-            .include(&sources_dir)
-            .include(&libhxcadaptor_sources)
-            .include(base.parent().unwrap().join("libusbhxcfe/sources")) // For usb_hxcfloppyemulator.h
-            .include(base.parent().unwrap().join("build"))
-            .include(sources_dir.join("thirdpartylibs/zlib"))
-            .include(sources_dir.join("thirdpartylibs/zlib/contrib/minizip"))
-            .include(sources_dir.join("thirdpartylibs/xdms"))
-            .include(sources_dir.join("thirdpartylibs/xdms/xdms-1.3.2/src"))
-            .include(sources_dir.join("thirdpartylibs/expat/lib"))
-            .include(sources_dir.join("thirdpartylibs/FATIOlib"))
-            .include(sources_dir.join("thirdpartylibs/adflib/Lib"))
-            .include(sources_dir.join("thirdpartylibs/lz4/lib"));
-
-        // Add USB-specific includes for Linux
-        if usb_enabled {
-            build.include(base.parent().unwrap().join("libusbhxcfe/sources/linux")); // For Linux USB headers
-            eprintln!("USB feature enabled - added linux include path for USB support");
-        }
-
-        build
-            .define("XML_STATIC", None)
-            .define("XML_GE", "1")
-            .define("XML_DTD", "1")
-            .define("XML_DEV_URANDOM", None)  // Use /dev/urandom for entropy on Linux
-            .warnings(false);
-
-        build.compile("hxcfe");
-
-        // Link USB library if USB feature is enabled
-        if usb_enabled {
-            println!("cargo:rustc-link-lib=dylib=usb-1.0");
-            eprintln!("USB feature enabled - linking libusb-1.0");
-        }
-
-        eprintln!("Successfully built libhxcfe and libhxcadaptor with cc crate");
+        build_unix(&base, &sources_dir, &libhxcadaptor_sources);
     }
 
     // Generate bindings
+    generate_bindings(&base, &include_dir, &libhxcadaptor_sources, &out_path);
+}
+
+fn build_windows(base: &PathBuf, sources_dir: &PathBuf, libhxcadaptor_sources: &PathBuf, target: &str) {
+    let toolchain = if target.contains("msvc") { "MSVC" } else { "MinGW/GCC" };
+    eprintln!("Building with {} using cc crate", toolchain);
+
+    let usb_enabled = env::var("CARGO_FEATURE_USB").is_ok();
+    
+    // Collect C files
+    let mut c_files = collect_c_files(libhxcadaptor_sources, &[]);
+    eprintln!("Found {} C files in libhxcadaptor", c_files.len());
+
+    c_files.extend(collect_c_files(sources_dir, &[]));
+    let total_count = c_files.len();
+    
+    // Add USB files if enabled
+    if usb_enabled {
+        let libusbhxcfe_sources = base.parent().unwrap().join("libusbhxcfe/sources");
+        let usb_files = collect_c_files(&libusbhxcfe_sources, &["/linux/", "/macosx/", "\\linux\\", "\\macosx\\"]);
+        eprintln!("Added {} USB C files", usb_files.len());
+        c_files.extend(usb_files);
+    }
+    
+    eprintln!("Compiling {} total C files", total_count);
+
+    // Build
+    let mut build = cc::Build::new();
+    for file in c_files {
+        build.file(&file);
+    }
+
+    // Add Windows compatibility headers
+    build.include("src/win_compat");
+    
+    add_common_includes(&mut build, sources_dir, base, libhxcadaptor_sources);
+
+    if usb_enabled {
+        build.include(base.parent().unwrap().join("libusbhxcfe/sources/win32"));
+        eprintln!("USB feature enabled - added win32 include path");
+    }
+
+    add_common_defines(&mut build);
+    build.define("WIN32", None);
+
+    // MinGW: add -static-libgcc
+    if target.contains("gnu") {
+        build.flag("-static-libgcc");
+        eprintln!("MinGW: Added -static-libgcc flag");
+    }
+
+    build.compile("hxcfe");
+
+    // Link Windows system libraries
+    println!("cargo:rustc-link-lib=dylib=advapi32");
+    println!("cargo:rustc-link-lib=dylib=ws2_32");
+
+    // Link FTDI USB library if USB feature is enabled (MSVC only)
+    if usb_enabled && target.contains("msvc") {
+        let ftdi_lib_dir = base.parent().unwrap().join("libusbhxcfe/sources/win32");
+        println!("cargo:rustc-link-search=native={}", ftdi_lib_dir.display());
+        println!("cargo:rustc-link-lib=static=ftd2xx");
+        eprintln!("USB feature enabled - linking ftd2xx library (MSVC)");
+    } else if usb_enabled {
+        eprintln!("WARNING: USB feature enabled but ftd2xx.lib is MSVC format only");
+        eprintln!("         USB functionality will not be available with MinGW build");
+    }
+
+    eprintln!("Successfully built with {}", toolchain);
+}
+
+fn build_unix(base: &PathBuf, sources_dir: &PathBuf, libhxcadaptor_sources: &PathBuf) {
+    eprintln!("Building for Unix platforms");
+
+    let usb_enabled = env::var("CARGO_FEATURE_USB").is_ok();
+    
+    // Collect C files (exclude Windows-specific files)
+    let mut c_files = collect_c_files(libhxcadaptor_sources, &[]);
+    eprintln!("Found {} C files in libhxcadaptor", c_files.len());
+
+    c_files.extend(collect_c_files(sources_dir, &["iowin32.c", "/Win32/", "\\Win32\\"]));
+    let total_count = c_files.len();
+    
+    // Add USB files if enabled
+    if usb_enabled {
+        let libusbhxcfe_sources = base.parent().unwrap().join("libusbhxcfe/sources");
+        let usb_files = collect_c_files(&libusbhxcfe_sources, &["/win32/", "/macosx/", "\\win32\\", "\\macosx\\"]);
+        eprintln!("Added {} USB C files", usb_files.len());
+        c_files.extend(usb_files);
+    }
+    
+    eprintln!("Compiling {} total C files", total_count);
+
+    // Build
+    let mut build = cc::Build::new();
+    for file in c_files {
+        build.file(&file);
+    }
+
+    add_common_includes(&mut build, sources_dir, base, libhxcadaptor_sources);
+
+    if usb_enabled {
+        build.include(base.parent().unwrap().join("libusbhxcfe/sources/linux"));
+        eprintln!("USB feature enabled - added linux include path");
+    }
+
+    add_common_defines(&mut build);
+    build.define("XML_DEV_URANDOM", None);  // Use /dev/urandom for entropy on Linux
+
+    build.compile("hxcfe");
+
+    // Link USB library if USB feature is enabled
+    if usb_enabled {
+        println!("cargo:rustc-link-lib=dylib=usb-1.0");
+        eprintln!("USB feature enabled - linking libusb-1.0");
+    }
+
+    eprintln!("Successfully built for Unix platforms");
+}
+
+fn generate_bindings(base: &PathBuf, include_dir: &PathBuf, libhxcadaptor_sources: &PathBuf, out_path: &PathBuf) {
     let usb_enabled = env::var("CARGO_FEATURE_USB").is_ok();
     let mut builder = bindgen::Builder::default()
         .clang_arg(format!("-I{}", include_dir.display()))
@@ -362,121 +243,57 @@ fn main() {
         .expect("Couldn't write bindings!");
 }
 
-fn build_wasm(
-    base: &PathBuf,
-    sources_dir: &PathBuf,
-    libhxcadaptor_sources: &PathBuf,
-    _out_path: &PathBuf,
-    target: &str,
-) {
-    // Collect all .c files from sources directory, excluding test files and examples
-    let mut c_files = Vec::new();
-
-    // libhxcadaptor requires standard C headers (assert.h, etc.) which are only available
-    // in Emscripten, not in wasm32-unknown-unknown
+fn build_wasm(base: &PathBuf, sources_dir: &PathBuf, libhxcadaptor_sources: &PathBuf, _out_path: &PathBuf, target: &str) {
     let is_emscripten = target.contains("emscripten");
     
-    if is_emscripten {
-        // Add libhxcadaptor C files for Emscripten (matches original Makefile)
-        for entry in WalkDir::new(libhxcadaptor_sources)
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().is_some_and(|ext| ext == "c"))
-        {
-            c_files.push(entry.path().to_path_buf());
-        }
-        eprintln!("Found {} C files in libhxcadaptor", c_files.len());
-    } else {
-        eprintln!("Skipping libhxcadaptor for wasm32-unknown-unknown (requires standard C headers not available without Emscripten)");
+    // The C library code requires standard C library headers (stdlib.h, string.h, etc.)
+    // which are only available with Emscripten's libc implementation.
+    // The original project's Makefiles only support Emscripten for WASM builds.
+    if !is_emscripten {
+        eprintln!("\n==========================================================");
+        eprintln!("WARNING: Building for '{}' without Emscripten", target);
+        eprintln!("==========================================================");
+        eprintln!("The C library requires standard C headers (stdlib.h, string.h, etc.)");
+        eprintln!("which are not available in {}.", target);
+        eprintln!("");
+        eprintln!("The original HxCFloppyEmulator project only supports Emscripten for WASM.");
+        eprintln!("Recommended target: wasm32-unknown-emscripten");
+        eprintln!("");
+        eprintln!("To install: rustup target add wasm32-unknown-emscripten");
+        eprintln!("To build:   cargo build --target wasm32-unknown-emscripten");
+        eprintln!("==========================================================\n");
+        
+        panic!("Unsupported WASM target: {}. Use wasm32-unknown-emscripten instead.", target);
     }
+    
+    // Collect C files
+    let mut c_files = collect_c_files(libhxcadaptor_sources, &[]);
+    eprintln!("Found {} C files in libhxcadaptor", c_files.len());
 
-    // Add libhxcfe C files (same exclusions as Windows build)
-    for entry in WalkDir::new(sources_dir)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().is_some_and(|ext| ext == "c"))
-    {
-        let path = entry.path();
-        let path_str = path.to_string_lossy();
-        // Skip test files, examples, demos, command-line tools, USB sources (not supported in WASM)
-        if path_str.contains("test")
-            || path_str.contains("example")
-            || path_str.contains("Demo")
-            || path_str.contains("HxCFloppyEmulator_cmdline")
-            || path_str.contains("Generic")
-            || path_str.contains("adfvolinfo.c")
-            || path_str.contains("nt4_dev.c")
-            || path_str.contains("fuzz")
-            || path_str.contains("xmlwf")
-            || path_str.contains("gennmtab")
-            || path_str.contains("FATIOlib\\Main.c")
-            || path_str.contains("FATIOlib/Main.c")
-            || path_str.contains("xdms.c")
-            || path_str.contains("minizip.c")
-            || path_str.contains("miniunz.c")
-            || path_str.contains("untgz.c")
-            || path_str.contains("bmptoh.c")
-            || path_str.contains("programs")
-            || path_str.contains("usb")  // Skip all USB-related files for WASM
-            || path_str.contains("USB")
-            || path_str.contains("ftdi")
-            || path_str.contains("FTDI")
-        {
-            continue;
-        }
-        c_files.push(path.to_path_buf());
-    }
+    // Add libhxcfe C files - skip USB support entirely for WASM
+    let wasm_exclusions = &["usb", "USB", "ftdi", "FTDI"];
+    c_files.extend(collect_c_files(sources_dir, wasm_exclusions));
+    
+    eprintln!("Compiling {} total C files (libhxcfe + libhxcadaptor)", c_files.len());
 
-    let hxcfe_count = c_files.len();
-    if is_emscripten {
-        eprintln!("Found {} total C files to compile for WASM (libhxcfe + libhxcadaptor)", hxcfe_count);
-    } else {
-        eprintln!("Found {} total C files to compile for WASM (libhxcfe only)", hxcfe_count);
-    }
-
-    // Build with cc crate for WASM target
+    // Build
     let mut build = cc::Build::new();
     for file in c_files {
         build.file(&file);
     }
 
-    build
-        .include(sources_dir)
-        .include(libhxcadaptor_sources)
-        .include(base.parent().unwrap().join("libusbhxcfe/sources")) // For usb_hxcfloppyemulator.h
-        .include(base.parent().unwrap().join("build"))
-        .include(sources_dir.join("thirdpartylibs/zlib"))
-        .include(sources_dir.join("thirdpartylibs/zlib/contrib/minizip"))
-        .include(sources_dir.join("thirdpartylibs/xdms"))
-        .include(sources_dir.join("thirdpartylibs/xdms/xdms-1.3.2/src"))
-        .include(sources_dir.join("thirdpartylibs/expat/lib"))
-        .include(sources_dir.join("thirdpartylibs/FATIOlib"))
-        .include(sources_dir.join("thirdpartylibs/adflib/Lib"))
-        .include(sources_dir.join("thirdpartylibs/lz4/lib"));
+    add_common_includes(&mut build, sources_dir, base, libhxcadaptor_sources);
+    add_common_defines(&mut build);
 
-    // WASM-specific defines (matching Emscripten Makefile)
-    build
-        .define("XML_STATIC", None)
-        .define("XML_GE", "1")
-        .define("XML_DTD", "1")
-        .warnings(false);
-
-    // WASM optimization flags (Emscripten recommends -O2 or -O3 for production)
+    // WASM optimization flags
     if target.contains("wasm32") {
         build.flag("-O2");
-        if target.contains("emscripten") {
-            // Emscripten-specific: enable memory growth, disable pthreads (not needed for core lib)
-            build.flag("-sALLOW_MEMORY_GROWTH=1");
-            eprintln!("WASM: Using Emscripten optimization flags");
-        }
+        build.flag("-sALLOW_MEMORY_GROWTH=1");
+        eprintln!("Using Emscripten optimization flags");
     }
 
     build.compile("hxcfe");
 
-    if is_emscripten {
-        eprintln!("Successfully built libhxcfe and libhxcadaptor for WebAssembly (Emscripten)");
-    } else {
-        eprintln!("Successfully built libhxcfe for WebAssembly (wasm32-unknown-unknown, libhxcadaptor skipped)");
-    }
+    eprintln!("Successfully built for WebAssembly (Emscripten)");
 }
 
