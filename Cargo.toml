@@ -5,6 +5,14 @@ members = [
 	"hxcfe"
 , "hxcfe_cli"]
 
+version = "0.2.0"
+edition = "2024"
+links = "hxcfe"
+repository = "https://github.com/cpcsdk/hxcfe_rs"
+authors = ["Romain Giot <giot.romain@gmail.com>"]
+license = "GPL-3.0-only"
+description = "Bindings for libhxcfe https://github.com/jfdelnero/HxCFloppyEmulator/. Unfinished work, contributions are welcomed."
+
 [workspace.dependencies]
 
 # Workspace crates

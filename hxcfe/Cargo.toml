@@ -1,13 +1,12 @@
 [package]
 name = "hxcfe"
-version = "0.2.0"
-edition = "2024"
-repository = "https://github.com/cpcsdk/hxcfe_rs"
-authors = ["Romain Giot <giot.romain@gmail.com>"]
-license = "GPL-3.0-only"
-description = "Bindings for libhxcfe https://github.com/jfdelnero/HxCFloppyEmulator/. Unfinished work, contributions are welcomed."
-readme = "../Readme.md"
-
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Rustty safe abstraction over hxcfe-sys. Unfinished work, contributions are welcomed."
+readme = '../Readme.md'
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]

@@ -1,7 +1,8 @@
 [package]
 name = "hxcfe-sys"
-version = "0.2.0"
-edition = "2024"
+
+version.workspace = true
+edition.workspace = true
 links = "hxcfe"
 repository = "https://github.com/cpcsdk/hxcfe_rs"
 authors = ["Romain Giot <giot.romain@gmail.com>"]
