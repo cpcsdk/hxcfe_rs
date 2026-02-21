@@ -10,43 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-wasm:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v3
-    - run: git submodule update --init --recursive
-    
-    - name: Install Rust nightly toolchain with WASM target
-      uses: dtolnay/rust-toolchain@nightly
-      with:
-        targets: wasm32-unknown-unknown
-    
-    - name: Install wasm-bindgen-cli
-      run: cargo install wasm-bindgen-cli
-    
-    - name: Build hxcfe-sys for WASM
-      run: cargo build -p hxcfe-sys --target wasm32-unknown-unknown --verbose
-    
-    - name: Build hxcfe for WASM
-      run: cargo build -p hxcfe --target wasm32-unknown-unknown --verbose
-    
-    - name: Build hxcfe for WASM (release)
-      run: cargo build -p hxcfe --target wasm32-unknown-unknown --release --verbose
-    
-    - name: Generate WASM bindings
-      run: |
-        wasm-bindgen target/wasm32-unknown-unknown/release/hxcfe.wasm \
-          --out-dir pkg \
-          --target web \
-          --typescript
-    
-    - name: Upload WASM artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: wasm-package
-        path: pkg/
-        retention-days: 7
+
 
   build-wasm-emscripten:
     runs-on: ubuntu-latest
