@@ -561,7 +561,7 @@ dependencies = [
 
 [[package]]
 name = "hxcfe"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "enumn",
  "fs-err",
@@ -572,7 +572,7 @@ dependencies = [
 
 [[package]]
 name = "hxcfe-sys"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bindgen",
  "cc",

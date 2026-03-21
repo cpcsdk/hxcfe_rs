@@ -17,8 +17,8 @@ description = "Bindings for libhxcfe https://github.com/jfdelnero/HxCFloppyEmula
 [workspace.dependencies]
 
 # Workspace crates
-hxcfe-sys = { version = "0.2" }
-hxcfe = { version = "0.2" }
+hxcfe-sys = { version = "0.3.0" }
+hxcfe = { version = "0.3.0" }
 
 # Build dependencies
 make-cmd = "0.1.0"
