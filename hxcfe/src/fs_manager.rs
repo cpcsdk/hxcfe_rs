@@ -1,7 +1,4 @@
-use std::{
-    ffi::{CStr, CString},
-    marker::PhantomData,
-};
+use std::ffi::{CStr, CString};
 
 use hxcfe_sys::{
     HXCFE_FSENTRY, HXCFE_FSMNG, hxcfe_closeDir, hxcfe_closeFile, hxcfe_createDir, hxcfe_createFile,
@@ -28,7 +25,7 @@ where
 #[derive(Debug)]
 pub struct FileSystemManager<'hfe> {
     handler: *mut HXCFE_FSMNG,
-    phantom: PhantomData<&'hfe Hxcfe>,
+    hxcfe: &'hfe Hxcfe,
 }
 
 #[derive(Debug)]
@@ -43,45 +40,52 @@ pub struct DirEntry /*<'hfe, 'mananger, 'dir>*/ {
 
 impl<'hfe> Drop for FileSystemManager<'hfe> {
     fn drop(&mut self) {
+        let _h = self.hxcfe.lock_handler();
         unsafe { hxcfe_deinitFsManager(self.handler) };
     }
 }
 
 impl<'hfe> FileSystemManager<'hfe> {
     pub fn new(hxcfe: &'hfe Hxcfe) -> Option<Self> {
-        let handler: *mut HXCFE_FSMNG = unsafe { hxcfe_initFsManager(hxcfe.handler) };
+        let handler: *mut HXCFE_FSMNG = unsafe { hxcfe_initFsManager(*hxcfe.lock_handler()) };
 
         if handler.is_null() {
             None
         } else {
             Some(Self {
                 handler,
-                phantom: PhantomData,
+                hxcfe,
             })
         }
     }
 
     pub fn select_fs(&self, fs_id: FileSystemId) -> i32 {
+        let _h = self.hxcfe.lock_handler();
         unsafe { hxcfe_selectFS(self.handler, fs_id.get()) }
     }
 
     pub fn mount(&self, img: &Img) -> i32 {
+        let _h = self.hxcfe.lock_handler();
         unsafe { hxcfe_mountImage(self.handler, img.floppydisk) }
     }
 
     pub fn umount(&self) -> i32 {
+        let _h = self.hxcfe.lock_handler();
         unsafe { hxcfe_umountImage(self.handler) }
     }
 
     pub fn free_space(&self) -> i32 {
+        let _h = self.hxcfe.lock_handler();
         unsafe { hxcfe_getFreeFsSpace(self.handler) }
     }
 
     pub fn total_space(&self) -> i32 {
+        let _h = self.hxcfe.lock_handler();
         unsafe { hxcfe_getTotalFsSpace(self.handler) }
     }
 
     pub fn open_dir(&self, folder: &str) -> Result<DirHandler<'_, '_>, i32> {
+        let _h = self.hxcfe.lock_handler();
         let dirhandle = with_cstring(folder, |folder: *mut i8| unsafe {
             hxcfe_openDir(self.handler, folder)
         })?;
@@ -97,6 +101,7 @@ impl<'hfe> FileSystemManager<'hfe> {
     }
 
     pub fn open_file(&self, filename: &str) -> Result<FileHandle, i32> {
+        let _h = self.hxcfe.lock_handler();
         let filehandle = with_cstring(filename, |filename: *mut i8| unsafe {
             hxcfe_openFile(self.handler, filename)
         })?;
@@ -109,6 +114,7 @@ impl<'hfe> FileSystemManager<'hfe> {
     }
 
     pub fn create_file(&self, filename: &str) -> Result<FileHandle, i32> {
+        let _h = self.hxcfe.lock_handler();
         let filehandle = with_cstring(filename, |filename: *mut i8| unsafe {
             hxcfe_createFile(self.handler, filename)
         })?;
@@ -121,6 +127,7 @@ impl<'hfe> FileSystemManager<'hfe> {
     }
 
     pub fn read_file(&self, filehandle: FileHandle, buffer: &mut [u8]) -> Result<i32, i32> {
+        let _h = self.hxcfe.lock_handler();
         let size = buffer.len() as i32;
         let ret =
             unsafe { hxcfe_readFile(self.handler, filehandle.get(), buffer.as_mut_ptr(), size) };
@@ -129,6 +136,7 @@ impl<'hfe> FileSystemManager<'hfe> {
     }
 
     pub fn write_file(&self, filehandle: FileHandle, buffer: &[u8]) -> Result<i32, i32> {
+        let _h = self.hxcfe.lock_handler();
         let size = buffer.len() as i32;
         let ret = unsafe {
             hxcfe_writeFile(
@@ -143,29 +151,36 @@ impl<'hfe> FileSystemManager<'hfe> {
     }
 
     pub fn close_file(&self, filehandle: FileHandle) -> i32 {
+        let _h = self.hxcfe.lock_handler();
         unsafe { hxcfe_closeFile(self.handler, filehandle.get()) }
     }
 
     pub fn delete_file(&self, filename: &str) -> Result<(), i32> {
+        let _h = self.hxcfe.lock_handler();
         let ret = with_cstring(filename, |filename: *mut i8| unsafe {
             hxcfe_deleteFile(self.handler, filename)
-        })?;
+        })?
+        ;
 
         if ret >= 0 { Ok(()) } else { Err(ret) }
     }
 
     pub fn create_dir(&self, dirname: &str) -> Result<(), i32> {
+        let _h = self.hxcfe.lock_handler();
         let ret = with_cstring(dirname, |dirname: *mut i8| unsafe {
             hxcfe_createDir(self.handler, dirname)
-        })?;
+        })?
+        ;
 
         if ret >= 0 { Ok(()) } else { Err(ret) }
     }
 
     pub fn remove_dir(&self, dirname: &str) -> Result<(), i32> {
+        let _h = self.hxcfe.lock_handler();
         let ret = with_cstring(dirname, |dirname: *mut i8| unsafe {
             hxcfe_removeDir(self.handler, dirname)
-        })?;
+        })?
+        ;
 
         if ret >= 0 { Ok(()) } else { Err(ret) }
     }
@@ -173,6 +188,7 @@ impl<'hfe> FileSystemManager<'hfe> {
 
 impl<'hfe, 'manager> DirHandler<'hfe, 'manager> {
     pub fn read(&self) -> Result<DirEntry, i32> {
+        let _h = self.fs_manager.hxcfe.lock_handler();
         let mut entry: HXCFE_FSENTRY = unsafe { std::mem::zeroed() };
         let ret =
             unsafe { hxcfe_readDir(self.fs_manager.handler, self.dirhandle.get(), &mut entry) };
@@ -185,6 +201,7 @@ impl<'hfe, 'manager> DirHandler<'hfe, 'manager> {
     }
 
     pub fn close(self) -> i32 {
+        let _h = self.fs_manager.hxcfe.lock_handler();
         unsafe { hxcfe_closeDir(self.fs_manager.handler, self.dirhandle.get()) }
     }
 }

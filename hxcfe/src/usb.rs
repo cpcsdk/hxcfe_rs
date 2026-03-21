@@ -29,7 +29,7 @@ impl UsbHxcfe {
     /// }
     /// ```
     pub fn init(hxcfe: &'static Hxcfe) -> Option<Self> {
-        let handler = unsafe { hxcfe_sys::usbhxcfe::libusbhxcfe_init(**hxcfe) };
+        let handler = unsafe { hxcfe_sys::usbhxcfe::libusbhxcfe_init(*hxcfe.lock_handler()) };
         if handler.is_null() {
             None
         } else {
@@ -58,7 +58,7 @@ impl UsbHxcfe {
     /// ```
     pub fn load_floppy(&self, img: &Img) -> Result<(), HxcfeError> {
         let ret = unsafe {
-            hxcfe_sys::usbhxcfe::libusbhxcfe_loadFloppy(**self.hxcfe, self.handler, img.floppy())
+            hxcfe_sys::usbhxcfe::libusbhxcfe_loadFloppy(*self.hxcfe.lock_handler(), self.handler, img.floppy())
         };
 
         if ret == 0 {
@@ -74,7 +74,7 @@ impl UsbHxcfe {
     /// `Ok(())` on success, `Err(HxcfeError)` on failure.
     pub fn eject_floppy(&self) -> Result<(), HxcfeError> {
         let ret =
-            unsafe { hxcfe_sys::usbhxcfe::libusbhxcfe_ejectFloppy(**self.hxcfe, self.handler) };
+            unsafe { hxcfe_sys::usbhxcfe::libusbhxcfe_ejectFloppy(*self.hxcfe.lock_handler(), self.handler) };
 
         if ret == 0 {
             Ok(())
@@ -98,11 +98,12 @@ impl UsbHxcfe {
         double_step: bool,
         drive: DriveId,
     ) -> Result<(), HxcfeError> {
-        let mode_id = interface_mode.id(**self.hxcfe);
+        let h = self.hxcfe.lock_handler();
+        let mode_id = interface_mode.id(*h);
 
         let ret = unsafe {
             hxcfe_sys::usbhxcfe::libusbhxcfe_setInterfaceMode(
-                **self.hxcfe,
+                *h,
                 self.handler,
                 mode_id,
                 if double_step { 1 } else { 0 },
@@ -123,7 +124,7 @@ impl UsbHxcfe {
     /// The interface mode, or None if invalid.
     pub fn get_interface_mode(&self) -> Option<InterfaceMode> {
         let mode_id = unsafe {
-            hxcfe_sys::usbhxcfe::libusbhxcfe_getInterfaceMode(**self.hxcfe, self.handler)
+            hxcfe_sys::usbhxcfe::libusbhxcfe_getInterfaceMode(*self.hxcfe.lock_handler(), self.handler)
         };
         InterfaceMode::from_i32(mode_id)
     }
@@ -133,7 +134,7 @@ impl UsbHxcfe {
     /// # Returns
     /// `true` if double-step is enabled.
     pub fn get_double_step(&self) -> bool {
-        unsafe { hxcfe_sys::usbhxcfe::libusbhxcfe_getDoubleStep(**self.hxcfe, self.handler) != 0 }
+        unsafe { hxcfe_sys::usbhxcfe::libusbhxcfe_getDoubleStep(*self.hxcfe.lock_handler(), self.handler) != 0 }
     }
 
     /// Get the current drive select.
@@ -142,7 +143,7 @@ impl UsbHxcfe {
     /// The drive number (0-3).
     pub fn get_drive(&self) -> DriveId {
         DriveId::new(unsafe {
-            hxcfe_sys::usbhxcfe::libusbhxcfe_getDrive(**self.hxcfe, self.handler)
+            hxcfe_sys::usbhxcfe::libusbhxcfe_getDrive(*self.hxcfe.lock_handler(), self.handler)
         })
     }
 
@@ -152,7 +153,7 @@ impl UsbHxcfe {
     /// The track number.
     pub fn get_current_track(&self) -> TrackId {
         TrackId::new(unsafe {
-            hxcfe_sys::usbhxcfe::libusbhxcfe_getCurTrack(**self.hxcfe, self.handler)
+            hxcfe_sys::usbhxcfe::libusbhxcfe_getCurTrack(*self.hxcfe.lock_handler(), self.handler)
         })
     }
 }
@@ -161,7 +162,7 @@ impl Drop for UsbHxcfe {
     fn drop(&mut self) {
         if !self.handler.is_null() {
             unsafe {
-                hxcfe_sys::usbhxcfe::libusbhxcfe_deInit(**self.hxcfe, self.handler);
+                hxcfe_sys::usbhxcfe::libusbhxcfe_deInit(*self.hxcfe.lock_handler(), self.handler);
             }
         }
     }

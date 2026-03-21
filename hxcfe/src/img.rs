@@ -6,6 +6,7 @@ use hxcfe_sys::HXCFE_FLOPPY;
 use hxcfe_sys::ImageFormat;
 use hxcfe_sys::hxcfe_floppyDuplicate;
 use hxcfe_sys::hxcfe_floppyGetInterfaceMode;
+use hxcfe_sys::hxcfe_floppySetInterfaceMode;
 use hxcfe_sys::hxcfe_floppySectorBySectorCopy;
 use hxcfe_sys::hxcfe_getFloppyInterfaceModeDesc;
 use hxcfe_sys::hxcfe_getFloppyInterfaceModeName;
@@ -39,15 +40,17 @@ pub struct Interface<'img> {
 
 impl Drop for Img {
     fn drop(&mut self) {
-        // Unload the floppy disk image to free resources
-        // We need to create a temporary loader manager for this
-        unsafe {
-            let loader_ctx = hxcfe_imgInitLoader(self.hxcfe.as_ref().unwrap().handler);
-            if !loader_ctx.is_null() {
-                hxcfe_imgUnload(loader_ctx, self.floppydisk);
-                hxcfe_imgDeInitLoader(loader_ctx);
-            }
+        // Hold the lock across all three calls so no other thread can access
+        // the HXCFE context between hxcfe_imgInitLoader and hxcfe_imgUnload /
+        // hxcfe_imgDeInitLoader.
+        let hxcfe = unsafe { self.hxcfe.as_ref().unwrap() };
+        let h = hxcfe.lock_handler();
+        let loader_ctx = unsafe { hxcfe_imgInitLoader(*h) };
+        if !loader_ctx.is_null() {
+            unsafe { hxcfe_imgUnload(loader_ctx, self.floppydisk) };
+            unsafe { hxcfe_imgDeInitLoader(loader_ctx) };
         }
+        // h drops here, releasing the lock
     }
 }
 
@@ -81,10 +84,35 @@ impl Img {
 
     pub fn interface_mode(&self) -> Option<Interface<'_>> {
         let ifmode = unsafe {
-            hxcfe_floppyGetInterfaceMode(self.hxcfe.as_ref().unwrap().handler, self.floppydisk)
+            hxcfe_floppyGetInterfaceMode(*self.hxcfe.as_ref().unwrap().lock_handler(), self.floppydisk)
         };
         let ifmode = InterfaceMode::from_i32(ifmode)?;
         Some(Interface { img: self, ifmode })
+    }
+
+    /// Set the interface mode for this floppy disk image.
+    ///
+    /// This affects how the image is interpreted and saved.
+    ///
+    /// # Arguments
+    /// * `mode` - The interface mode to set
+    ///
+    /// # Returns
+    /// `Ok(())` on success, `Err(HxcfeError)` on failure.
+    pub fn set_interface_mode(&mut self, mode: InterfaceMode) -> Result<(), HxcfeError> {
+        let hxcfe = unsafe { self.hxcfe.as_ref().unwrap() };
+        let h = hxcfe.lock_handler();
+        let mode_id = mode.id(*h);
+        let ret = unsafe {
+            hxcfe_floppySetInterfaceMode(*h, self.floppydisk, mode_id)
+        };
+        drop(h);
+        let ret = HxcfeError::n(ret).unwrap_or(HxcfeError::HXCFE_INTERNALERROR);
+        if ret == HxcfeError::HXCFE_NOERROR {
+            Ok(())
+        } else {
+            Err(ret)
+        }
     }
 
     pub fn sector_access(&self) -> Option<SectorAccess<'_>> {
@@ -101,7 +129,7 @@ impl Img {
 
     // XXX how is it different than nb_tracks_per_head ?
     pub fn nb_tracks(&self) -> i32 {
-        unsafe { hxcfe_getNumberOfTrack(self.hxcfe.as_ref().unwrap().handler, self.floppydisk) }
+        unsafe { hxcfe_getNumberOfTrack(*self.hxcfe.as_ref().unwrap().lock_handler(), self.floppydisk) }
     }
 
     pub fn nb_tracks_per_head(&self) -> i32 {
@@ -109,7 +137,7 @@ impl Img {
     }
 
     pub fn nb_sides(&self) -> i32 {
-        unsafe { hxcfe_getNumberOfSide(self.hxcfe.as_ref().unwrap().handler, self.floppydisk) }
+        unsafe { hxcfe_getNumberOfSide(*self.hxcfe.as_ref().unwrap().lock_handler(), self.floppydisk) }
     }
 
     pub fn size(&self) -> i32 {
@@ -129,7 +157,7 @@ impl Img {
         let mut nbbadsector = 0;
         let size = unsafe {
             hxcfe_getFloppySize(
-                self.hxcfe.as_ref().unwrap().handler,
+                *self.hxcfe.as_ref().unwrap().lock_handler(),
                 self.floppydisk,
                 &mut nbofsector,
                 &mut nbbadsector,
@@ -156,7 +184,7 @@ impl Img {
     /// ```
     pub fn duplicate(&self) -> Result<Img, HxcfeError> {
         let new_floppy =
-            unsafe { hxcfe_floppyDuplicate(self.hxcfe.as_ref().unwrap().handler, self.floppydisk) };
+            unsafe { hxcfe_floppyDuplicate(*self.hxcfe.as_ref().unwrap().lock_handler(), self.floppydisk) };
 
         if new_floppy.is_null() {
             Err(HxcfeError::HXCFE_INTERNALERROR)
@@ -180,7 +208,7 @@ impl Img {
     pub fn copy_sectors_from(&mut self, src: &Img) -> Result<(), HxcfeError> {
         let ret = unsafe {
             hxcfe_floppySectorBySectorCopy(
-                self.hxcfe.as_ref().unwrap().handler,
+                *self.hxcfe.as_ref().unwrap().lock_handler(),
                 self.floppydisk,
                 src.floppydisk,
                 0,
@@ -198,13 +226,10 @@ impl Img {
 
 impl<'img> Interface<'img> {
     pub fn name(&self) -> &str {
-        let mode_id = self
-            .ifmode
-            .id(unsafe { self.img.hxcfe.as_ref().unwrap() }.handler);
-
-        let res = unsafe {
-            hxcfe_getFloppyInterfaceModeName(self.img.hxcfe.as_ref().unwrap().handler, mode_id)
-        };
+        let hxcfe = unsafe { self.img.hxcfe.as_ref().unwrap() };
+        let h = hxcfe.lock_handler();
+        let mode_id = self.ifmode.id(*h);
+        let res = unsafe { hxcfe_getFloppyInterfaceModeName(*h, mode_id) };
         if res.is_null() {
             return "";
         }
@@ -212,13 +237,10 @@ impl<'img> Interface<'img> {
     }
 
     pub fn description(&self) -> &str {
-        let mode_id = self
-            .ifmode
-            .id(unsafe { self.img.hxcfe.as_ref().unwrap() }.handler);
-
-        let res = unsafe {
-            hxcfe_getFloppyInterfaceModeDesc(self.img.hxcfe.as_ref().unwrap().handler, mode_id)
-        };
+        let hxcfe = unsafe { self.img.hxcfe.as_ref().unwrap() };
+        let h = hxcfe.lock_handler();
+        let mode_id = self.ifmode.id(*h);
+        let res = unsafe { hxcfe_getFloppyInterfaceModeDesc(*h, mode_id) };
         if res.is_null() {
             return "";
         }

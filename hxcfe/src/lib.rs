@@ -16,7 +16,7 @@ pub use types::{DriveId, FileHandle, FileSystemId, HeadId, SectorId, TrackId};
 #[cfg(feature = "usb")]
 pub use usb::UsbHxcfe;
 
-use std::{ffi::CStr, ops::Deref, path::Path, sync::Arc};
+use std::{ffi::CStr, path::Path, sync::Arc};
 
 use floppy_interface::FloppyInterface;
 use hxcfe_sys::{
@@ -58,8 +58,8 @@ pub enum HxcfeError {
 }
 
 static HXCFE_INSTANCE: Lazy<Arc<Hxcfe>> = Lazy::new(|| {
-    let handler = unsafe { hxcfe_sys::hxcfe_init() };
-    let hxcfe: Arc<Hxcfe> = Hxcfe { handler }.into();
+    let raw_handler = unsafe { hxcfe_sys::hxcfe_init() };
+    let hxcfe: Arc<Hxcfe> = Hxcfe { handler: parking_lot::Mutex::new(raw_handler) }.into();
 
     /*
         eprintln!("Check loaders- need to remove that of course");
@@ -85,20 +85,14 @@ unsafe impl Sync for Hxcfe {}
 /// Use [`Hxcfe::get()`] to obtain a reference to the global instance.
 // By construction there is only one instance available. So it is uneeded to keep its reference
 pub struct Hxcfe {
-    handler: *mut HXCFE,
+    /// The raw C context, protected by a Mutex against concurrent access from multiple threads.
+    handler: parking_lot::Mutex<*mut HXCFE>,
 }
 
-impl Deref for Hxcfe {
-    type Target = *mut HXCFE;
-
-    fn deref(&self) -> &Self::Target {
-        &self.handler
-    }
-}
 impl Drop for Hxcfe {
     fn drop(&mut self) {
         eprintln!("Deallocate HXCFE");
-        unsafe { hxcfe_sys::hxcfe_deinit(self.handler) };
+        unsafe { hxcfe_sys::hxcfe_deinit(*self.handler.lock()) };
     }
 }
 impl Hxcfe {
@@ -115,9 +109,19 @@ impl Hxcfe {
         &HXCFE_INSTANCE
     }
 
+    /// Lock the `HXCFE` context and return the guard.
+    /// The lock is held for as long as the returned guard is alive — callers
+    /// should deref it (`*guard`) when passing the pointer to a C function,
+    /// ensuring the mutex is held for the entire duration of that FFI call.
+    /// For sequences of C calls that must be atomic, keep the guard in a
+    /// local binding until all calls complete.
+    pub(crate) fn lock_handler(&self) -> parking_lot::MutexGuard<'_, *mut HXCFE> {
+        self.handler.lock()
+    }
+
     /// Get the version string of the HxC library.
     pub fn version(&self) -> &str {
-        let version = unsafe { hxcfe_getVersion(self.handler) };
+        let version = unsafe { hxcfe_getVersion(*self.lock_handler()) };
         let version = unsafe { CStr::from_ptr(version) };
         version.to_str().unwrap()
     }
@@ -183,7 +187,7 @@ impl Hxcfe {
 
         let mut err_ret: i32 = 0;
         let floppydisk =
-            unsafe { hxcfe_generateFloppy(self.handler, path_ptr, fs_id.get(), &mut err_ret) };
+            unsafe { hxcfe_generateFloppy(*self.lock_handler(), path_ptr, fs_id.get(), &mut err_ret) };
         let _ = unsafe { CString::from_raw(path_ptr) };
 
         let err = HxcfeError::n(err_ret).unwrap_or(HxcfeError::HXCFE_INTERNALERROR);
@@ -209,7 +213,7 @@ impl Hxcfe {
 
         let name_cstr = CString::new(name).ok()?;
         let name_ptr = name_cstr.into_raw();
-        let mode_id = unsafe { hxcfe_getFloppyInterfaceModeID(self.handler, name_ptr) };
+        let mode_id = unsafe { hxcfe_getFloppyInterfaceModeID(*self.lock_handler(), name_ptr) };
         let _ = unsafe { CString::from_raw(name_ptr) };
 
         InterfaceMode::from_i32(mode_id)
@@ -225,7 +229,7 @@ impl Hxcfe {
     pub fn get_track_encoding_name(&self, encoding_id: i32) -> &str {
         use std::ffi::CStr;
 
-        let name_ptr = unsafe { hxcfe_getTrackEncodingName(self.handler, encoding_id) };
+        let name_ptr = unsafe { hxcfe_getTrackEncodingName(*self.lock_handler(), encoding_id) };
         if name_ptr.is_null() {
             return "";
         }

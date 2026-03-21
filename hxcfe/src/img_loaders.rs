@@ -70,6 +70,7 @@ pub struct ImgLoader<'mngr> {
 impl<'mngr> ImgLoader<'mngr> {
     /// Get the name identifier of this loader (e.g., "HFE", "DSK", "RAW").
     pub fn name(&self) -> &str {
+        let _h = self.manager.hxcfe_ref().lock_handler();
         let name = unsafe { hxcfe_imgGetLoaderName(self.manager.handler, self.idx) };
         if name.is_null() {
             return "";
@@ -79,6 +80,7 @@ impl<'mngr> ImgLoader<'mngr> {
 
     /// Get the file extension associated with this loader (e.g., "hfe", "dsk").
     pub fn ext(&self) -> &str {
+        let _h = self.manager.hxcfe_ref().lock_handler();
         let ext = unsafe { hxcfe_imgGetLoaderExt(self.manager.handler, self.idx) };
         if ext.is_null() {
             return "";
@@ -88,12 +90,14 @@ impl<'mngr> ImgLoader<'mngr> {
 
     /// Get the access mode of this loader (read, write, or read-write).
     pub fn access(&self) -> ImgLoaderAccess {
+        let _h = self.manager.hxcfe_ref().lock_handler();
         let access = unsafe { hxcfe_imgGetLoaderAccess(self.manager.handler, self.idx) };
         ImgLoaderAccess::n(access).unwrap()
     }
 
     /// Get a human-readable description of this loader.
     pub fn description(&self) -> &str {
+        let _h = self.manager.hxcfe_ref().lock_handler();
         let desc = unsafe { hxcfe_imgGetLoaderDesc(self.manager.handler, self.idx) };
         if desc.is_null() {
             return "";
@@ -119,8 +123,10 @@ impl<'mngr> ImgLoader<'mngr> {
         let p = p.into_raw();
 
         let mut ret: i32 = 0;
-        let floppydisk: *mut HXCFE_FLOPPY =
-            unsafe { hxcfe_imgLoad(self.manager.handler, p, self.idx, &mut ret) };
+        let floppydisk: *mut HXCFE_FLOPPY = {
+            let _h = self.manager.hxcfe_ref().lock_handler();
+            unsafe { hxcfe_imgLoad(self.manager.handler, p, self.idx, &mut ret) }
+        };
         let _ = unsafe { CString::from_raw(p) };
 
         let ret = HxcfeError::n(ret).unwrap_or(HxcfeError::HXCFE_INTERNALERROR);
@@ -151,7 +157,10 @@ impl<'mngr> ImgLoader<'mngr> {
         let p = CString::new(p).map_err(|_| HxcfeError::HXCFE_BADPARAMETER)?;
         let p = p.into_raw();
 
-        let ret = unsafe { hxcfe_imgExport(self.manager.handler, img.floppydisk, p, self.idx) };
+        let ret = {
+            let _h = self.manager.hxcfe_ref().lock_handler();
+            unsafe { hxcfe_imgExport(self.manager.handler, img.floppydisk, p, self.idx) }
+        };
 
         let _ = unsafe { CString::from_raw(p) };
         let ret = HxcfeError::n(ret).unwrap_or(HxcfeError::HXCFE_INTERNALERROR);
@@ -165,6 +174,7 @@ impl<'mngr> ImgLoader<'mngr> {
 
 impl Drop for ImgLoaderManager {
     fn drop(&mut self) {
+        let _h = self.hxcfe_ref().lock_handler();
         unsafe {
             hxcfe_imgDeInitLoader(self.handler);
         }
@@ -172,8 +182,13 @@ impl Drop for ImgLoaderManager {
 }
 
 impl ImgLoaderManager {
+    /// Return a shared reference to the parent Hxcfe singleton.
+    fn hxcfe_ref(&self) -> &Hxcfe {
+        unsafe { &*self.hxcfe }
+    }
+
     pub fn new(hxcfe: &Hxcfe) -> Option<Self> {
-        let handler: *mut HXCFE_IMGLDR = unsafe { hxcfe_imgInitLoader(hxcfe.handler) };
+        let handler: *mut HXCFE_IMGLDR = unsafe { hxcfe_imgInitLoader(*hxcfe.lock_handler()) };
 
         if handler.is_null() {
             None
@@ -193,17 +208,19 @@ impl ImgLoaderManager {
 
     /// Get the total number of available image loaders.
     pub fn nb_loaders(&self) -> i32 {
-        let numberofloader = unsafe { hxcfe_imgGetNumberOfLoader(self.handler) };
-        numberofloader as _
+        let _h = self.hxcfe_ref().lock_handler();
+        let n = unsafe { hxcfe_imgGetNumberOfLoader(self.handler) };
+        n as i32
     }
 
     fn get_loader_id_for_format(&self, format: &str) -> Option<i32> {
         let format = CString::new(format).ok()?;
-
         let format = format.into_raw();
-        let loaderid = unsafe { hxcfe_imgGetLoaderID(self.handler, format) };
-        let _ = unsafe { CString::from_raw(format) }; // ensure memory is freed;
-
+        let loaderid = {
+            let _h = self.hxcfe_ref().lock_handler();
+            unsafe { hxcfe_imgGetLoaderID(self.handler, format) }
+        };
+        let _ = unsafe { CString::from_raw(format) };
         Some(loaderid)
     }
 
@@ -231,9 +248,11 @@ impl ImgLoaderManager {
         let p = p.display().to_string();
         let p = CString::new(p).ok()?;
         let p = p.into_raw();
-        let loaderid = unsafe { hxcfe_imgAutoSetectLoader(self.handler, p, 0) };
-        let _ = unsafe { CString::from_raw(p) }; // ensure memory is freed;
-
+        let loaderid = {
+            let _h = self.hxcfe_ref().lock_handler();
+            unsafe { hxcfe_imgAutoSetectLoader(self.handler, p, 0) }
+        };
+        let _ = unsafe { CString::from_raw(p) };
         self.loader_for_id(loaderid)
     }
 
@@ -241,8 +260,11 @@ impl ImgLoaderManager {
     pub fn loader_for_text_id<'mngr>(&'mngr self, text: &str) -> Option<ImgLoader<'mngr>> {
         let p = CString::new(text).ok()?;
         let p = p.into_raw();
-        let loaderid = unsafe { hxcfe_imgGetLoaderID(self.handler, p) };
-        let _ = unsafe { CString::from_raw(p) }; // ensure memory is freed;
+        let loaderid = {
+            let _h = self.hxcfe_ref().lock_handler();
+            unsafe { hxcfe_imgGetLoaderID(self.handler, p) }
+        };
+        let _ = unsafe { CString::from_raw(p) };
         self.loader_for_id(loaderid)
     }
 

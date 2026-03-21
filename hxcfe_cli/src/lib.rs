@@ -93,24 +93,14 @@ pub struct HxcfeCli {
 }
 
 pub fn run(cli: &HxcfeCli) -> Result<()> {
-    println!(
-        "HxC Floppy Emulator : Floppy image file converter v{}",
-        VERSION
-    );
-    println!("Copyright (C) 2006-2026 Jean-Francois DEL NERO");
-    println!(
-        "Rust version. Differs slightly from the original C version AND has not been deeply tested. So expect issues, report them, they will be fixed."
-    );
-    println!("This program comes with ABSOLUTELY NO WARRANTY");
-    println!("This is free software, and you are welcome to redistribute it");
-    println!("under certain conditions;\n");
+    print_header();
 
     let hxc = Hxcfe::get();
     println!("libhxcfe version : {}\n", hxc.version());
 
     // License
     if cli.license {
-        println!("License : GPL v3\n");
+        cmd_license();
         return Ok(());
     }
 
@@ -121,19 +111,19 @@ pub fn run(cli: &HxcfeCli) -> Result<()> {
 
     // Module list
     if cli.module_list {
-        print_module_list(hxc)?;
+        cmd_module_list(hxc)?;
         return Ok(());
     }
 
     // Interface list
     if cli.interface_list {
-        print_interface_list(hxc)?;
+        cmd_interface_list(hxc)?;
         return Ok(());
     }
 
     // Raw/Layout list
     if cli.raw_list {
-        print_disk_layout(hxc)?;
+        cmd_disk_layout_list(hxc)?;
         return Ok(());
     }
 
@@ -149,25 +139,25 @@ pub fn run(cli: &HxcfeCli) -> Result<()> {
 
         // Info command
         if cli.infos {
-            print_file_info(hxc, input)?;
+            cmd_info(hxc, input)?;
             return Ok(());
         }
 
         // List command
         if cli.list {
-            list_directory(hxc, input)?;
+            cmd_list(hxc, input)?;
             return Ok(());
         }
 
         // Get file command
         if let Some(filename) = &cli.getfile {
-            get_file(hxc, input, filename)?;
+            cmd_get_file(hxc, input, filename)?;
             return Ok(());
         }
 
         // Put file command
         if let Some(file_to_put) = &cli.putfile {
-            put_file(hxc, input, file_to_put)?;
+            cmd_put_file(hxc, input, file_to_put)?;
             return Ok(());
         }
 
@@ -176,43 +166,13 @@ pub fn run(cli: &HxcfeCli) -> Result<()> {
         if let Some(drive) = cli.usb {
             let drive_id = DriveId::from_u8(drive)
                 .ok_or_else(|| anyhow::anyhow!("Invalid drive number: {} (must be 0-3)", drive))?;
-            usb_load(input, drive_id, &cli)?;
+            cmd_usb(hxc, input, drive_id, cli)?;
             return Ok(());
         }
 
         // Conversion
         if let Some(format_str) = &cli.convert {
-            let format = ImageFormat::from_str(format_str).ok_or_else(|| {
-                anyhow::anyhow!(
-                    "Unknown format: {}. Use --listmodules to see available formats",
-                    format_str
-                )
-            })?;
-
-            let img = hxc
-                .load(input)
-                .map_err(|e| anyhow::anyhow!("Failed to load image: {}", e))?;
-
-            let output = if let Some(out) = &cli.output {
-                out.clone()
-            } else {
-                // Generate output filename from input
-                let mut output_path = input.clone();
-                output_path.set_extension(format.extension());
-                output_path
-            };
-
-            println!("Output file : {}", output.display());
-
-            if let Some(reffile) = &cli.reffile {
-                // Sector by sector copy mode
-                sector_by_sector_copy(hxc, &img, reffile, &output, format)?;
-            } else {
-                // Standard conversion
-                img.save(&output, format)
-                    .map_err(|e| anyhow::anyhow!("Failed to save: {}", e))?;
-            }
-
+            cmd_convert(hxc, input, format_str, cli)?;
             return Ok(());
         }
     }
@@ -229,6 +189,111 @@ pub fn run(cli: &HxcfeCli) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn print_header() {
+    println!(
+        "HxC Floppy Emulator : Floppy image file converter v{}",
+        VERSION
+    );
+    println!("Copyright (C) 2006-2026 Jean-Francois DEL NERO");
+    println!(
+        "Rust version. Differs slightly from the original C version AND has not been deeply tested. So expect issues, report them, they will be fixed."
+    );
+    println!("This program comes with ABSOLUTELY NO WARRANTY");
+    println!("This is free software, and you are welcome to redistribute it");
+    println!("under certain conditions;\n");
+}
+
+fn cmd_license() {
+    println!("License : GPL v3\n");
+}
+
+fn cmd_module_list(hxc: &Hxcfe) -> Result<()> {
+    print_module_list(hxc)
+}
+
+fn cmd_interface_list(hxc: &Hxcfe) -> Result<()> {
+    print_interface_list(hxc)
+}
+
+fn cmd_disk_layout_list(hxc: &Hxcfe) -> Result<()> {
+    print_disk_layout(hxc)
+}
+
+fn cmd_info(hxc: &Hxcfe, input: &PathBuf) -> Result<()> {
+    print_file_info(hxc, input)
+}
+
+fn cmd_list(hxc: &Hxcfe, input: &PathBuf) -> Result<()> {
+    list_directory(hxc, input)
+}
+
+fn cmd_get_file(hxc: &Hxcfe, image_path: &PathBuf, filename: &str) -> Result<()> {
+    get_file(hxc, image_path, filename)
+}
+
+fn cmd_put_file(hxc: &Hxcfe, image_path: &PathBuf, file_to_put: &PathBuf) -> Result<()> {
+    put_file(hxc, image_path, file_to_put)
+}
+
+fn cmd_convert(hxc: &Hxcfe, input: &PathBuf, format_str: &str, cli: &HxcfeCli) -> Result<()> {
+    let format = ImageFormat::from_str(format_str).ok_or_else(|| {
+        anyhow::anyhow!(
+            "Unknown format: {}. Use --modulelist to see available formats",
+            format_str
+        )
+    })?;
+
+    let mut img = hxc
+        .load(input)
+        .map_err(|e| anyhow::anyhow!("Failed to load image: {}", e))?;
+
+    // Set interface mode: use specified mode or get current mode from disk
+    // This matches C behavior which always calls hxcfe_floppySetInterfaceMode
+    let ifmode = if let Some(ifmode_str) = &cli.interface_mode {
+        InterfaceMode::from_str(ifmode_str).ok_or_else(|| {
+            anyhow::anyhow!(
+                "Unknown interface mode: {}. Use --interfacelist to see available modes",
+                ifmode_str
+            )
+        })?
+    } else {
+        // Get current interface mode if none specified
+        img.interface_mode()
+            .ok_or_else(|| anyhow::anyhow!("Failed to get current interface mode"))?
+            .ifmode
+    };
+
+    img.set_interface_mode(ifmode)
+        .map_err(|e| anyhow::anyhow!("Failed to set interface mode: {:?}", e))?;
+
+    let output = if let Some(out) = &cli.output {
+        out.clone()
+    } else {
+        // Generate output filename from input
+        let mut output_path = input.clone();
+        output_path.set_extension(format.extension());
+        output_path
+    };
+
+    println!("Output file : {}", output.display());
+
+    if let Some(reffile) = &cli.reffile {
+        // Sector by sector copy mode
+        sector_by_sector_copy(hxc, &img, reffile, &output, format)?;
+    } else {
+        // Standard conversion
+        img.save(&output, format)
+            .map_err(|e| anyhow::anyhow!("Failed to save: {}", e))?;
+    }
+
+    Ok(())
+}
+
+#[cfg(feature = "usb")]
+fn cmd_usb(hxc: &Hxcfe, input: &PathBuf, drive: DriveId, cli: &HxcfeCli) -> Result<()> {
+    usb_load(input, drive, cli)
 }
 
 fn print_module_list(hxc: &Hxcfe) -> Result<()> {
