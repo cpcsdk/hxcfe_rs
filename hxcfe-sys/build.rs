@@ -1,6 +1,7 @@
 use regex::Regex;
 use std::env;
 use std::fs;
+use std::path::Path;
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
@@ -74,10 +75,34 @@ fn add_common_defines(build: &mut cc::Build) {
         .warnings(false);
 }
 
+/// Ensures the vendored HxC sources are present (git submodule initialized)
+fn ensure_hxc_submodule_present(original_base: &Path) {
+    let has_entries = fs::read_dir(original_base)
+        .map(|mut entries| entries.next().is_some())
+        .unwrap_or(false);
+
+    let required_paths = [
+        original_base.join("libhxcfe/sources"),
+        original_base.join("libhxcadaptor/sources"),
+    ];
+
+    if !original_base.exists() || !has_entries || required_paths.iter().any(|p| !p.exists()) {
+        panic!(
+            "Missing vendored HxC sources in '{}'.\n\
+             This usually means the git submodule was not initialized.\n\
+             Please run from repository root:\n\
+             git submodule update --init --recursive\n\
+             Expected submodule path:\n\
+             hxcfe-sys/vendor/HxCFloppyEmulator",
+            original_base.display()
+        );
+    }
+}
+
 fn main() {
     // setup paths of interest
     let original_base: PathBuf = "vendor/HxCFloppyEmulator/".into();
-    assert!(original_base.exists());
+    ensure_hxc_submodule_present(&original_base);
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
 
     // clone source code in output as it is the sole place where we can build
