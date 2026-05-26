@@ -818,14 +818,24 @@ fn generate_image_format_enum(base: &PathBuf, out_path: &PathBuf) {
     code.push_str("    pub fn from_str(s: &str) -> Option<Self> {\n");
     code.push_str("        let upper = s.to_uppercase();\n");
     code.push_str("        match upper.as_str() {\n");
+    code.push_str("            \"HFE\" => Some(Self::HxcHfev3),\n");
+
+    let mut handled_extensions = std::collections::HashSet::from([String::from("HFE")]);
 
     for loader in &loaders {
         let variant_name = id_to_variant_name(&loader.id);
         let ext_upper = loader.extension.to_uppercase();
-        code.push_str(&format!(
-            "            \"{}\" | \"{}\" => Some(Self::{}),\n",
-            loader.id, ext_upper, variant_name
-        ));
+        if handled_extensions.insert(ext_upper.clone()) {
+            code.push_str(&format!(
+                "            \"{}\" | \"{}\" => Some(Self::{}),\n",
+                loader.id, ext_upper, variant_name
+            ));
+        } else {
+            code.push_str(&format!(
+                "            \"{}\" /* | \"{}\" */ => Some(Self::{}),\n",
+                loader.id, ext_upper, variant_name
+            ));
+        }
     }
 
     code.push_str("            _ => None,\n");
