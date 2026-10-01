@@ -6,7 +6,7 @@ members = [
 , "hxcfe_cli"]
 
 [workspace.package]
-version = "0.3.1"
+version = "0.3.2"
 edition = "2024"
 links = "hxcfe"
 repository = "https://github.com/cpcsdk/hxcfe_rs"
@@ -17,8 +17,8 @@ description = "Bindings for libhxcfe https://github.com/jfdelnero/HxCFloppyEmula
 [workspace.dependencies]
 
 # Workspace crates
-hxcfe-sys = { version = "0.3.1" }
-hxcfe = { version = "0.3.1" }
+hxcfe-sys = { version = "0.3.2" }
+hxcfe = { version = "0.3.2" }
 
 # Build dependencies
 make-cmd = "0.1.0"

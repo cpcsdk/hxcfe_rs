@@ -13,7 +13,6 @@ const EXCLUDED_FILES: &[&str] = &[
     "HxCFloppyEmulator_cmdline",
     "Generic",
     "adfvolinfo.c",
-    "nt4_dev.c",
     "fuzz",
     "xmlwf",
     "gennmtab",
@@ -248,7 +247,7 @@ fn build_unix(base: &PathBuf, sources_dir: &PathBuf, libhxcadaptor_sources: &Pat
 
     c_files.extend(collect_c_files(
         sources_dir,
-        &["iowin32.c", "/Win32/", "\\Win32\\"],
+        &["iowin32.c", "nt4_dev.c", "/Win32/", "\\Win32\\"],
     ));
     let total_count = c_files.len();
 
@@ -366,7 +365,7 @@ fn build_wasm(
     eprintln!("Found {} C files in libhxcadaptor", c_files.len());
 
     // Add libhxcfe C files - skip USB support entirely for WASM
-    let wasm_exclusions = &["usb", "USB", "ftdi", "FTDI"];
+    let wasm_exclusions = &["usb", "USB", "ftdi", "FTDI", "nt4_dev.c"];
     c_files.extend(collect_c_files(sources_dir, wasm_exclusions));
 
     eprintln!(
