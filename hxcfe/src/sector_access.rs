@@ -227,7 +227,62 @@ impl SectorConfig<'_, '_> {
         let _h = self.access.hxcfe_ref().lock_handler();
         let len = unsafe { hxcfe_getSectorSize(self.access.access, self.cfg) };
         let data = unsafe { hxcfe_getSectorData(self.access.access, self.cfg) };
+        if data.is_null() || len <= 0 {
+            // a sector without a data field (missing data address mark)
+            return &[];
+        }
         unsafe { std::slice::from_raw_parts_mut(data, len as usize) }
+    }
+
+    fn cfg(&self) -> &HXCFE_SECTCFG {
+        unsafe { self.cfg.as_ref().unwrap() }
+    }
+
+    /// The C (cylinder) of the sector's ID.
+    pub fn cylinder(&self) -> i32 {
+        self.cfg().cylinder
+    }
+
+    /// The N (size) byte of the sector's ID, as recorded.
+    pub fn size_id(&self) -> u8 {
+        self.cfg().alternate_sector_size_id as u8
+    }
+
+    /// The CRC of the sector's ID field is right.
+    pub fn header_crc_ok(&self) -> bool {
+        self.cfg().use_alternate_header_crc == 0
+    }
+
+    /// The data address mark found after the ID (0xFB normal, 0xF8 deleted on ISO/IBM tracks);
+    /// None when no data field follows the ID.
+    pub fn data_mark(&self) -> Option<u8> {
+        let cfg = self.cfg();
+        (cfg.use_alternate_datamark != 0).then_some(cfg.alternate_datamark as u8)
+    }
+
+    /// The CRC of the data field is right (meaningless without a data mark).
+    pub fn data_crc_ok(&self) -> bool {
+        self.cfg().use_alternate_data_crc == 0
+    }
+
+    /// Bit (cell) offset in the track of the ID field (its first sync byte).
+    pub fn start_sector_index(&self) -> i32 {
+        self.cfg().startsectorindex
+    }
+
+    /// Bit (cell) offset in the track of the data field (its first sync byte).
+    pub fn start_data_index(&self) -> i32 {
+        self.cfg().startdataindex
+    }
+
+    /// Bit (cell) offset in the track of the end of the sector.
+    pub fn end_sector_index(&self) -> i32 {
+        self.cfg().endsectorindex
+    }
+
+    /// Bit rate of the sector (bits per second).
+    pub fn bitrate(&self) -> i32 {
+        self.cfg().bitrate
     }
 
     /// TODO handle error (res + fdcstatus)

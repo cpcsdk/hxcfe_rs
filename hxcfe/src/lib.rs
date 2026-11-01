@@ -23,7 +23,8 @@ use hxcfe_sys::{
     HXCFE, hxcfe_generateFloppy, hxcfe_getFloppyInterfaceModeID, hxcfe_getTrackEncodingName,
     hxcfe_getVersion,
 };
-pub use img::Img;
+pub use img::{Img, TrackBits};
+pub use sector_access::{SectorAccess, SectorConfig, SectorConfigArray};
 pub use img_loaders::ImgLoaderManager;
 pub use layouts::LayoutManager;
 
