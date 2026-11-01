@@ -54,7 +54,73 @@ impl Drop for Img {
     }
 }
 
+/// The raw cells of one side of a track, as the library keeps them: bit `i` is
+/// `(data[i / 8] >> (7 - i % 8)) & 1` (MSB first).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TrackBits {
+    pub data: Vec<u8>,
+    /// Cells that read randomly (weak bits), same layout; empty when the track has none.
+    pub flaky: Vec<u8>,
+    /// Index signal, one byte per cell byte; empty when the track has none.
+    pub index: Vec<u8>,
+    /// Number of cells.
+    pub len: usize,
+    /// Bit rate (bits per second).
+    pub bitrate: i32,
+}
+
 impl Img {
+    fn side(&self, track: i32, side: i32) -> Option<*mut hxcfe_sys::HXCFE_SIDE> {
+        unsafe {
+            let floppy = self.floppydisk.as_ref()?;
+            if track < 0 || track >= floppy.floppyNumberOfTrack || floppy.tracks.is_null() {
+                return None;
+            }
+            let cylinder = (*floppy.tracks.add(track as usize)).as_ref()?;
+            if side < 0 || side >= cylinder.number_of_side || cylinder.sides.is_null() {
+                return None;
+            }
+            let side = *cylinder.sides.add(side as usize);
+            (!side.is_null()).then_some(side)
+        }
+    }
+
+    /// The cells of one side of a track.
+    pub fn track_bits(&self, track: i32, side: i32) -> Option<TrackBits> {
+        let _h = unsafe { self.hxcfe.as_ref().unwrap().lock_handler() };
+        let side = unsafe { self.side(track, side)?.as_ref()? };
+        let len = side.tracklen.max(0) as usize;
+        let bytes = len.div_ceil(8);
+        let copy = |ptr: *mut u8| {
+            if ptr.is_null() { Vec::new() } else { unsafe { std::slice::from_raw_parts(ptr, bytes) }.to_vec() }
+        };
+        Some(TrackBits {
+            data: copy(side.databuffer),
+            flaky: copy(side.flakybitsbuffer),
+            index: copy(side.indexbuffer),
+            len,
+            bitrate: side.bitrate,
+        })
+    }
+
+    /// Replace the cells (and the weak cells, when the track keeps them) of one side of a track,
+    /// whose length does not change: `data` (and `flaky`) hold as many bytes as the track's cells.
+    pub fn set_track_bits(&mut self, track: i32, side: i32, data: &[u8], flaky: Option<&[u8]>) -> Result<(), String> {
+        let _h = unsafe { self.hxcfe.as_ref().unwrap().lock_handler() };
+        let side = unsafe { self.side(track, side).and_then(|s| s.as_mut()) }.ok_or("no such track side")?;
+        let bytes = (side.tracklen.max(0) as usize).div_ceil(8);
+        if data.len() != bytes || side.databuffer.is_null() {
+            return Err(format!("{} bytes of cells for a track of {bytes}", data.len()));
+        }
+        unsafe { std::slice::from_raw_parts_mut(side.databuffer, bytes) }.copy_from_slice(data);
+        if let (Some(flaky), false) = (flaky, side.flakybitsbuffer.is_null()) {
+            if flaky.len() == bytes {
+                unsafe { std::slice::from_raw_parts_mut(side.flakybitsbuffer, bytes) }.copy_from_slice(flaky);
+            }
+        }
+        Ok(())
+    }
+
     pub fn save<P: AsRef<Path>>(&self, p: P, format: ImageFormat) -> Result<(), String> {
         unsafe { self.hxcfe.as_ref().unwrap().save(p, format, self) }
     }
